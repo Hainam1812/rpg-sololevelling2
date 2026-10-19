@@ -27,6 +27,7 @@ export function getDefaultState(): GameState {
     seenCosmetics: ['bd-starter-dorm', 'fr-wooden-apprentice', 'tt-auto-level', 'np-simple-slate'],
     seenGear: [],
     customGearMeta: [],
+    customCharacters: [],
     examHistory: [],
     personalExams: [],
     lastLocationId: 'classroom',
@@ -67,6 +68,7 @@ export function loadStateFromStorage(): GameState {
       examHistory: Array.isArray(parsed.examHistory) ? parsed.examHistory : [],
       personalExams: Array.isArray(parsed.personalExams) ? parsed.personalExams : [],
       customGearMeta: Array.isArray(parsed.customGearMeta) ? parsed.customGearMeta : [],
+      customCharacters: Array.isArray(parsed.customCharacters) ? parsed.customCharacters : [],
       contactMessages: Array.isArray(parsed.contactMessages) ? parsed.contactMessages : [],
       schemaVersion: CURRENT_SCHEMA_VERSION,
     };

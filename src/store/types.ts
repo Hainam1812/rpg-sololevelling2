@@ -68,6 +68,16 @@ export interface CustomGearItem {
   createdAt: string;
 }
 
+export interface CustomCharacterDef {
+  id: string;
+  displayName: string;
+  tagline: string;
+  idleSrc: string; // Blob URL or path to 2D pixel GIF/PNG
+  rewardSrc?: string;
+  pixelArt: boolean;
+  createdAt: string;
+}
+
 export type GearSlot =
   | 'head'
   | 'face'
@@ -139,6 +149,7 @@ export interface GameState {
   seenCosmetics: string[];
   seenGear: string[];
   customGearMeta: CustomGearItem[];
+  customCharacters?: CustomCharacterDef[];
   examHistory: ExamHistoryEntry[];
   personalExams: PersonalExamGoal[];
   lastLocationId: string;

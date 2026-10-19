@@ -1,46 +1,46 @@
 [
   {
     "id": "hero",
-    "displayName": "Thợ Săn Jinwoo",
-    "tagline": "Thợ săn tập sự sẵn sàng thăng cấp từng ngày",
+    "displayName": "Nam Sinh Viên (Quân)",
+    "tagline": "Nam sinh viên năng động, quyết tâm cày deadline và đạt GPA xuất sắc",
     "idle": {
-      "src": "assets/char/hero/main.svg",
+      "src": "assets/char/hero/main.gif",
       "width": 240,
       "height": 240
     },
     "reward": {
-      "src": "assets/char/hero/get_star.svg",
+      "src": "assets/char/hero/get_star.gif",
       "width": 240,
       "height": 240,
-      "durationMs": 5000
+      "durationMs": 4000
     },
     "pixelArt": true,
     "stage": {
-      "scale": 0.8,
+      "scale": 0.9,
       "offsetY": 0
     },
-    "placeholder": true
+    "placeholder": false
   },
   {
     "id": "scholar",
-    "displayName": "Pháp Sư Học Thuật",
-    "tagline": "Học giả tri thức làm chủ thư viện và đồ án",
+    "displayName": "Nữ Sinh Viên (Mai)",
+    "tagline": "Nữ sinh viên chăm chỉ, làm chủ giảng đường, đồ án và các kỳ thi",
     "idle": {
-      "src": "assets/char/scholar/main.svg",
+      "src": "assets/char/scholar/main.gif",
       "width": 240,
       "height": 240
     },
     "reward": {
-      "src": "assets/char/scholar/get_star.svg",
+      "src": "assets/char/scholar/get_star.gif",
       "width": 240,
       "height": 240,
-      "durationMs": 5000
+      "durationMs": 4000
     },
     "pixelArt": true,
     "stage": {
-      "scale": 0.8,
+      "scale": 0.9,
       "offsetY": 0
     },
-    "placeholder": true
+    "placeholder": false
   }
 ]

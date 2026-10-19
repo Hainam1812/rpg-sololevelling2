@@ -103,7 +103,7 @@ export const COPY = {
     title: 'Chọn nhân vật đồng hành',
     subtitle: 'Hãy chọn bạn đồng hành để bắt đầu hành trình Solo Levelling!',
     nicknameLabel: 'Biệt danh của bạn',
-    nicknamePlaceholder: 'Nhập biệt danh (VD: Jinwoo, Minh, Lan...)',
+    nicknamePlaceholder: 'Nhập biệt danh (VD: Nam, Mai, Minh, Hoàng...)',
     confirm: 'Sẵn sàng nhập cuộc',
   },
 };

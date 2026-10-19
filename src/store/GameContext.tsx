@@ -3,6 +3,7 @@ import { GameState, NotificationItem } from './types.js';
 import { Action, gameReducer } from './reducer.js';
 import { loadStateFromStorage, saveStateToStorage, STORAGE_KEY } from './persistence.js';
 import { getMsUntilNextMidnight } from '../domain/dates.js';
+import { getGearBlob, getCharBlob } from './indexedDb.js';
 
 interface GameContextValue {
   state: GameState;
@@ -85,6 +86,43 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  // Hydrate custom gear and character blobs from IndexedDB
+  useEffect(() => {
+    let isMounted = true;
+    const hydrateBlobs = async () => {
+      let changed = false;
+      if (state.customGearMeta?.length) {
+        for (const item of state.customGearMeta) {
+          if (!item.imageBlobUrl) {
+            const blob = await getGearBlob(item.id);
+            if (blob && isMounted) {
+              item.imageBlobUrl = URL.createObjectURL(blob);
+              changed = true;
+            }
+          }
+        }
+      }
+      if (state.customCharacters?.length) {
+        for (const char of state.customCharacters) {
+          if (!char.idleSrc || char.idleSrc.startsWith('blob:')) {
+            const blob = await getCharBlob(char.id);
+            if (blob && isMounted) {
+              char.idleSrc = URL.createObjectURL(blob);
+              changed = true;
+            }
+          }
+        }
+      }
+      if (changed && isMounted) {
+        rawDispatch({ type: 'SET_PROFILE', payload: {} });
+      }
+    };
+    hydrateBlobs();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Midnight rollover watcher & focus/visibilitychange watcher

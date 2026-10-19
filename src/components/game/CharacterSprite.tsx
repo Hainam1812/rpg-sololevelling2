@@ -17,29 +17,40 @@ export const CharacterSprite: React.FC<CharacterSpriteProps> = ({
 }) => {
   const { state } = useGame();
 
-  // Find character from manifest
+  // Check if character is custom uploaded or built-in
+  const customChar = state.customCharacters?.find(c => c.id === characterId);
+
   const character =
+    customChar ||
     charactersData.find((c: any) => c.id === characterId) ||
     charactersData[0] || {
       id: 'hero',
-      displayName: 'Hero',
-      idle: { src: 'assets/char/hero/main.svg' },
-      reward: { src: 'assets/char/hero/get_star.svg' },
+      displayName: 'Nam Sinh Viên (Quân)',
+      idle: { src: 'assets/char/hero/main.gif' },
+      reward: { src: 'assets/char/hero/get_star.gif' },
       pixelArt: true,
-      stage: { scale: 0.8, offsetY: 0 },
+      stage: { scale: 0.9, offsetY: 0 },
     };
 
-  const hasReward = Boolean(character.reward?.src);
-  const showReward = isCelebrating && hasReward;
-
-  // Use base URL for path resolution
+  const isCustom = Boolean(customChar);
   const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
-  const imageRelPath = showReward ? character.reward!.src : character.idle.src;
-  const imageSrc = `${baseUrl}/${imageRelPath.replace(/^\//, '')}${
-    showReward ? `?t=${Date.now()}` : ''
-  }`;
 
-  const isPixel = character.pixelArt !== false;
+  let imageSrc = '';
+  let displayName = character.displayName || 'Nhân vật';
+  let isPixel = character.pixelArt !== false;
+
+  if (isCustom && customChar) {
+    const hasReward = Boolean(customChar.rewardSrc);
+    imageSrc = isCelebrating && hasReward ? customChar.rewardSrc! : customChar.idleSrc;
+  } else {
+    const builtIn = character as any;
+    const hasReward = Boolean(builtIn.reward?.src);
+    const showReward = isCelebrating && hasReward;
+    const imageRelPath = showReward ? builtIn.reward!.src : builtIn.idle.src;
+    imageSrc = `${baseUrl}/${imageRelPath.replace(/^\//, '')}${
+      showReward ? `?t=${Date.now()}` : ''
+    }`;
+  }
 
   // Equipped gear for this character
   const charGear = state.equippedGear[character.id] || {};
@@ -49,80 +60,93 @@ export const CharacterSprite: React.FC<CharacterSpriteProps> = ({
     item => !item.targetCharacterId || item.targetCharacterId === character.id
   );
 
+  const stageScale = (character as any).stage?.scale || 0.9;
+  const stageOffsetY = (character as any).stage?.offsetY || 0;
+
   return (
     <div
       className={`relative flex items-center justify-center select-none ${className}`}
       style={{
-        transform: `scale(${scale * (character.stage?.scale || 0.8)}) translateY(${
-          character.stage?.offsetY || 0
-        }%)`,
+        transform: `scale(${scale * stageScale}) translateY(${stageOffsetY}%)`,
       }}
     >
-      {/* Back Layer Gear (e.g. wings, cape, backpack) */}
+      {/* Back Layer Gear (Pixel Backpack Straps) */}
       {charGear.back && (
         <div className="absolute inset-0 pointer-events-none z-[1] flex items-center justify-center">
-          <svg className="w-full h-full opacity-90" viewBox="0 0 240 240">
-            {/* SVG back accessory visual */}
-            <path d="M70 120 C50 80, 50 160, 80 180 Z" fill="#4338CA" opacity="0.8" />
-            <path d="M170 120 C190 80, 190 160, 160 180 Z" fill="#4338CA" opacity="0.8" />
+          <svg className="w-full h-full" viewBox="0 0 28 40" shapeRendering="crispEdges">
+            <rect x="4" y="24" width="2" height="9" fill="#4338CA" />
+            <rect x="22" y="24" width="2" height="9" fill="#4338CA" />
+            <rect x="9" y="22" width="10" height="2" fill="#3730A3" />
           </svg>
         </div>
       )}
 
-      {/* Main Character Image / GIF / SVG */}
+      {/* Main Character 2D Pixel Image / Animated GIF / SVG */}
       <img
         src={imageSrc}
-        alt={character.displayName}
-        className={`max-w-full max-h-full object-contain pointer-events-none z-[2] transition-transform duration-300 ${
-          isPixel ? 'pixelated' : ''
-        } ${isCelebrating && !hasReward ? 'animate-celebrate-bounce' : ''}`}
+        alt={displayName}
+        className={`max-w-full max-h-full object-contain pointer-events-none z-[2] transition-transform duration-300 pixelated ${
+          isCelebrating ? 'animate-celebrate-bounce' : ''
+        }`}
         draggable={false}
       />
 
-      {/* Front Layers Gear overlays */}
-      {/* Body Gear (e.g. hoodie / armor trim) */}
+      {/* Front Layer Gear overlays - 2D Pixel Art styled on 28x40 grid */}
+      {/* Body Gear (Hoodie / Vest) */}
       {charGear.body && (
         <div className="absolute inset-0 pointer-events-none z-[3] flex items-center justify-center">
-          <svg className="w-full h-full" viewBox="0 0 240 240">
-            <path d="M96 112 L144 112 L138 165 L102 165 Z" fill="#4C1D95" opacity="0.75" />
-            <line x1="120" y1="114" x2="120" y2="160" stroke="#C4B5FD" strokeWidth="2" />
+          <svg className="w-full h-full" viewBox="0 0 28 40" shapeRendering="crispEdges">
+            <rect x="6" y="25" width="16" height="8" fill="#312E81" opacity="0.9" />
+            <rect x="10" y="26" width="1" height="5" fill="#F1F5F9" />
+            <rect x="17" y="26" width="1" height="5" fill="#F1F5F9" />
+            <rect x="11" y="29" width="6" height="3" fill="#1E1B4B" />
           </svg>
         </div>
       )}
 
-      {/* Head Gear (e.g. headband) */}
+      {/* Head Gear (Red Headband with Gold Badge) */}
       {charGear.head && (
         <div className="absolute inset-0 pointer-events-none z-[4] flex items-center justify-center">
-          <svg className="w-full h-full" viewBox="0 0 240 240">
-            <rect x="104" y="74" width="32" height="6" rx="2" fill="#DC2626" />
-            <circle cx="120" cy="77" r="2.5" fill="#FBBF24" />
+          <svg className="w-full h-full" viewBox="0 0 28 40" shapeRendering="crispEdges">
+            <rect x="7" y="11" width="14" height="2" fill="#DC2626" />
+            <rect x="13" y="11" width="2" height="2" fill="#FBBF24" />
           </svg>
         </div>
       )}
 
-      {/* Face Gear (e.g. glasses) */}
+      {/* Face Gear (Pixel Smart Glasses) */}
       {charGear.face && (
         <div className="absolute inset-0 pointer-events-none z-[5] flex items-center justify-center">
-          <svg className="w-full h-full" viewBox="0 0 240 240">
-            <rect x="110" y="80" width="8" height="6" rx="1.5" fill="none" stroke="#38BDF8" strokeWidth="1.5" />
-            <rect x="122" y="80" width="8" height="6" rx="1.5" fill="none" stroke="#38BDF8" strokeWidth="1.5" />
-            <line x1="118" y1="83" x2="122" y2="83" stroke="#38BDF8" strokeWidth="1.5" />
+          <svg className="w-full h-full" viewBox="0 0 28 40" shapeRendering="crispEdges">
+            <rect x="7" y="15" width="5" height="3" fill="none" stroke="#38BDF8" strokeWidth="1" />
+            <rect x="16" y="15" width="5" height="3" fill="none" stroke="#38BDF8" strokeWidth="1" />
+            <rect x="12" y="16" width="4" height="1" fill="#38BDF8" />
           </svg>
         </div>
       )}
 
-      {/* Handheld Gear (e.g. tome / tablet) */}
+      {/* Handheld Gear (Pixel Tablet / Notebook) */}
       {charGear.handheld && (
         <div className="absolute inset-0 pointer-events-none z-[6] flex items-center justify-center">
-          <svg className="w-full h-full" viewBox="0 0 240 240">
-            <rect x="62" y="130" width="18" height="24" rx="2" fill="#0284C7" />
-            <line x1="65" y1="135" x2="77" y2="135" stroke="#FFFFFF" strokeWidth="1" />
-            <line x1="65" y1="140" x2="75" y2="140" stroke="#BAE6FD" strokeWidth="1" />
+          <svg className="w-full h-full" viewBox="0 0 28 40" shapeRendering="crispEdges">
+            <rect x="2" y="27" width="4" height="6" fill="#0284C7" />
+            <rect x="3" y="28" width="2" height="4" fill="#E0F2FE" />
+            <rect x="3" y="29" width="2" height="1" fill="#0369A1" />
           </svg>
         </div>
       )}
 
-      {/* Custom Gear Layer */}
+      {/* Accessory (Pixel Pomodoro Smartwatch) */}
+      {charGear.accessory && (
+        <div className="absolute inset-0 pointer-events-none z-[6] flex items-center justify-center">
+          <svg className="w-full h-full" viewBox="0 0 28 40" shapeRendering="crispEdges">
+            <rect x="20" y="32" width="3" height="2" fill="#F59E0B" />
+            <rect x="21" y="32" width="1" height="2" fill="#EF4444" />
+          </svg>
+        </div>
+      )}
+
+      {/* Custom Gear Layer (Supports GIF / PNG pixel items) */}
       {customItems.map(custom => {
         if (!custom.imageBlobUrl) return null;
         return (
@@ -130,7 +154,7 @@ export const CharacterSprite: React.FC<CharacterSpriteProps> = ({
             key={custom.id}
             src={custom.imageBlobUrl}
             alt={custom.name}
-            className="absolute pointer-events-none z-[7]"
+            className="absolute pointer-events-none z-[7] pixelated"
             style={{
               transform: `translate(${custom.offsetX}px, ${custom.offsetY}px) scale(${custom.scale}) ${
                 custom.flipX ? 'scaleX(-1)' : ''

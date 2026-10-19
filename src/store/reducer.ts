@@ -1,4 +1,4 @@
-import { GameState, NotificationItem, CosmeticSlot, GearSlot, CustomGearItem, ExamHistoryEntry, Order } from './types.js';
+import { GameState, NotificationItem, CosmeticSlot, GearSlot, CustomGearItem, CustomCharacterDef, ExamHistoryEntry, Order } from './types.js';
 import { completeDailyQuest } from '../domain/quests.js';
 import { completePackageTask } from '../domain/packages.js';
 import { completeEventTask } from '../domain/events.js';
@@ -30,6 +30,8 @@ export type Action =
   | { type: 'ADD_CUSTOM_GEAR_META'; payload: { item: CustomGearItem } }
   | { type: 'REMOVE_CUSTOM_GEAR_META'; payload: { id: string } }
   | { type: 'UPDATE_CUSTOM_GEAR_ADJUST'; payload: { id: string; scale: number; offsetX: number; offsetY: number; flipX: boolean } }
+  | { type: 'ADD_CUSTOM_CHARACTER'; payload: { character: CustomCharacterDef } }
+  | { type: 'REMOVE_CUSTOM_CHARACTER'; payload: { id: string } }
   | { type: 'ADD_TO_CART'; payload: { packageId: string } }
   | { type: 'REMOVE_FROM_CART'; payload: { packageId: string } }
   | { type: 'APPLY_COUPON'; payload: { coupon: string | null } }
@@ -318,6 +320,36 @@ export function gameReducer(
         customGearMeta: state.customGearMeta.map(item =>
           item.id === id ? { ...item, scale, offsetX, offsetY, flipX } : item
         ),
+      };
+      break;
+    }
+
+    case 'ADD_CUSTOM_CHARACTER': {
+      const existing = state.customCharacters || [];
+      nextState = {
+        ...state,
+        customCharacters: [
+          action.payload.character,
+          ...existing.filter(c => c.id !== action.payload.character.id),
+        ],
+        profile: {
+          ...state.profile,
+          characterId: action.payload.character.id,
+        },
+      };
+      break;
+    }
+
+    case 'REMOVE_CUSTOM_CHARACTER': {
+      const existing = state.customCharacters || [];
+      const filtered = existing.filter(c => c.id !== action.payload.id);
+      nextState = {
+        ...state,
+        customCharacters: filtered,
+        profile: {
+          ...state.profile,
+          characterId: state.profile.characterId === action.payload.id ? 'hero' : state.profile.characterId,
+        },
       };
       break;
     }

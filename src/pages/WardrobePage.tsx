@@ -11,6 +11,8 @@ import gearData from '../data/gear.json' with { type: 'json' };
 import { selectUnlockedCosmetics } from '../store/selectors.js';
 import { isCosmeticUnlocked } from '../domain/cosmetics.js';
 import { saveGearBlob, deleteGearBlob } from '../store/indexedDb.js';
+import { CharacterSelectModal } from '../components/game/CharacterSelectModal.js';
+import charactersData from '../data/characters.json' with { type: 'json' };
 import {
   Shirt,
   Sparkles,
@@ -24,6 +26,8 @@ import {
   Plus,
   ArrowRight,
   ChevronRight,
+  User,
+  Wand2,
 } from 'lucide-react';
 
 export const WardrobePage: React.FC = () => {
@@ -32,6 +36,7 @@ export const WardrobePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'gear' | 'stage' | 'custom'>('gear');
   const [selectedGearSlot, setSelectedGearSlot] = useState<string>('all');
   const [selectedStageSlot, setSelectedStageSlot] = useState<CosmeticSlot | 'all'>('all');
+  const [isCharModalOpen, setIsCharModalOpen] = useState(false);
 
   // Preview override state
   const [previewCosmetic, setPreviewCosmetic] = useState<{ slot: string; id: string } | null>(null);
@@ -184,14 +189,31 @@ export const WardrobePage: React.FC = () => {
             />
 
             <div className="w-full flex items-center justify-between pt-2 border-t border-slate-700/60">
-              <span className="text-xs text-slate-400">
-                Nhân vật: <strong className="text-slate-200">{activeCharId}</strong>
-              </span>
+              <div className="text-left">
+                <div className="text-[10px] text-slate-400 font-pixel uppercase">Nhân vật hiện tại</div>
+                <div className="text-xs font-bold text-cyan-300">
+                  {state.customCharacters?.find(c => c.id === activeCharId)?.displayName ||
+                    charactersData.find((c: any) => c.id === activeCharId)?.displayName ||
+                    'Nam Sinh Viên (Quân)'}
+                </div>
+              </div>
 
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<User className="w-3.5 h-3.5" />}
+                onClick={() => setIsCharModalOpen(true)}
+              >
+                Đổi / Tải GIF
+              </Button>
+            </div>
+
+            <div className="w-full flex items-center justify-between pt-1">
               {previewCosmetic ? (
                 <Button
                   variant="secondary"
                   size="sm"
+                  fullWidth
                   onClick={() => setPreviewCosmetic(null)}
                 >
                   Hủy xem thử
@@ -428,20 +450,104 @@ export const WardrobePage: React.FC = () => {
             </div>
           )}
 
-          {/* TAB 3: Đồ của bạn (Custom User Gear - Road B) */}
+          {/* TAB 3: Đồ của bạn (Custom User Gear & 2D Pixel Presets) */}
           {activeTab === 'custom' && (
-            <div className="space-y-4">
+            <div className="space-y-6">
+              {/* Presets Gallery */}
+              <div className="p-4 rounded-2xl bg-[#161B40] border border-cyan-500/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-amber-400" />
+                      <span>Phụ Kiện 2D Pixel Sẵn Có (Animated GIF)</span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Bấm vào phụ kiện để trang bị nhanh lên nhân vật sinh viên của bạn!
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 pt-1">
+                  {[
+                    { id: 'preset-coffee', name: 'Ly Cà Phê Cày Deadline', slot: 'handheld', src: 'assets/gear/coffee_cup.gif', scale: 1.2, offsetX: -16, offsetY: 12 },
+                    { id: 'preset-grad', name: 'Mũ Cử Nhân Pixel', slot: 'head', src: 'assets/gear/grad_cap.gif', scale: 1.2, offsetX: 0, offsetY: -34 },
+                    { id: 'preset-shades', name: 'Kính Râm Pixel Ngầu', slot: 'face', src: 'assets/gear/pixel_shades.gif', scale: 1.0, offsetX: 0, offsetY: -12 },
+                    { id: 'preset-cat', name: 'Mèo Đậu Trên Đầu', slot: 'head', src: 'assets/gear/cat_on_head.gif', scale: 1.1, offsetX: 0, offsetY: -34 },
+                    { id: 'preset-headset', name: 'Tai Nghe Gaming Sinh Viên', slot: 'head', src: 'assets/gear/gaming_headset.gif', scale: 1.2, offsetX: 0, offsetY: -20 },
+                  ].map(preset => {
+                    const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
+                    const fullSrc = `${baseUrl}/${preset.src}`;
+                    const isAlreadyEquipped = customItems.some(c => c.id === preset.id);
+
+                    return (
+                      <div
+                        key={preset.id}
+                        className="p-2.5 rounded-xl bg-[#0F132E] border border-slate-700 hover:border-cyan-400/60 transition-all flex flex-col items-center text-center space-y-2 select-none"
+                      >
+                        <div className="w-14 h-14 flex items-center justify-center bg-[#161B40] rounded-lg p-1 border border-slate-800">
+                          <img
+                            src={fullSrc}
+                            alt={preset.name}
+                            className="max-h-full max-w-full object-contain pixelated"
+                          />
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-200 line-clamp-1 leading-tight">
+                          {preset.name}
+                        </span>
+                        <Button
+                          variant={isAlreadyEquipped ? 'secondary' : 'cyan'}
+                          size="sm"
+                          fullWidth
+                          className="text-[10px] py-1"
+                          onClick={() => {
+                            if (isAlreadyEquipped) {
+                              dispatch({ type: 'REMOVE_CUSTOM_GEAR_META', payload: { id: preset.id } });
+                            } else {
+                              dispatch({
+                                type: 'ADD_CUSTOM_GEAR_META',
+                                payload: {
+                                  item: {
+                                    id: preset.id,
+                                    name: preset.name,
+                                    slot: preset.slot as any,
+                                    imageBlobUrl: fullSrc,
+                                    scale: preset.scale,
+                                    offsetX: preset.offsetX,
+                                    offsetY: preset.offsetY,
+                                    flipX: false,
+                                    createdAt: new Date().toISOString(),
+                                  },
+                                },
+                              });
+                            }
+                          }}
+                        >
+                          {isAlreadyEquipped ? 'Đang đeo' : '+ Đeo ngay'}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* User Uploaded Gear */}
               <div className="flex items-center justify-between">
-                <p className="text-xs text-slate-400">
-                  Tải lên ảnh trang phục riêng của bạn (GIF, WebP, PNG) và lưu giữ trên thiết bị này.
-                </p>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
+                    <Upload className="w-4 h-4 text-cyan-400" />
+                    <span>Phụ Kiện Tự Tải Lên (GIF / PNG)</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Tải lên file ảnh động/tĩnh 2D Pixel của riêng bạn, căn chỉnh vị trí & kích thước trực quan.
+                  </p>
+                </div>
                 <Button
                   variant="cyan"
                   size="sm"
                   icon={<Plus className="w-4 h-4" />}
                   onClick={() => setIsUploadModalOpen(true)}
                 >
-                  Thêm đồ của bạn
+                  Tải lên phụ kiện
                 </Button>
               </div>
 
@@ -452,7 +558,7 @@ export const WardrobePage: React.FC = () => {
                     Chưa có món đồ cá nhân nào
                   </h4>
                   <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                    Bấm "Thêm đồ của bạn" để tải lên mũ, áo, kính hoặc phụ kiện độc nhất vô nhị do bạn tự chuẩn bị!
+                    Chọn nhanh các phụ kiện pixel sẵn có ở trên hoặc bấm "Tải lên phụ kiện" để thêm GIF/PNG riêng của bạn!
                   </p>
                 </div>
               ) : (
@@ -471,7 +577,7 @@ export const WardrobePage: React.FC = () => {
                               dispatch({ type: 'REMOVE_CUSTOM_GEAR_META', payload: { id: item.id } });
                             }
                           }}
-                          className="text-slate-500 hover:text-rose-400 p-1"
+                          className="text-slate-500 hover:text-rose-400 p-1 cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -479,7 +585,7 @@ export const WardrobePage: React.FC = () => {
 
                       <div className="h-20 bg-[#0F132E] rounded-xl flex items-center justify-center p-2 border border-slate-800">
                         {item.imageBlobUrl ? (
-                          <img src={item.imageBlobUrl} alt={item.name} className="max-h-full object-contain" />
+                          <img src={item.imageBlobUrl} alt={item.name} className="max-h-full object-contain pixelated" />
                         ) : (
                           <span className="text-xs text-slate-500 font-pixel">Custom Item</span>
                         )}
@@ -646,6 +752,14 @@ export const WardrobePage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Character Select & Upload Modal */}
+      <CharacterSelectModal
+        isOpen={isCharModalOpen}
+        onClose={() => setIsCharModalOpen(false)}
+        title="Đổi Nhân Vật hoặc Tải Lên GIF Riêng"
+        subtitle="Chọn nhân vật sinh viên 2D Pixel hoặc tải file ảnh GIF 2D Pixel của bạn để làm ảnh đại diện phiêu lưu!"
+      />
     </div>
   );
 };
