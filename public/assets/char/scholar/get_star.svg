@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <defs>
+    <radialGradient id="sStarAura" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#06B6D4" stop-opacity="0.8"/>
+      <stop offset="60%" stop-color="#3B82F6" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#0A0E27" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="sGlowStar" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Big Victory Aura -->
+  <circle cx="120" cy="115" r="95" fill="url(#sStarAura)" />
+
+  <!-- Shadow -->
+  <ellipse cx="120" cy="214" rx="46" ry="11" fill="#050714" opacity="0.7" />
+
+  <!-- Radiating cyan & gold magic glyphs -->
+  <g transform="translate(120, 48)" filter="url(#sGlowStar)">
+    <polygon points="0,-18 5,-5 18,-5 8,4 12,17 0,9 -12,17 -8,4 -18,-5 -5,-5" fill="#38BDF8" />
+    <circle cx="0" cy="0" r="4" fill="#FFFFFF" />
+  </g>
+
+  <!-- Robe Flaring Out -->
+  <path d="M92 110 L68 198 L105 200 L120 185 L135 200 L172 198 L148 110 Z" fill="#1E1B4B" />
+
+  <!-- Legs -->
+  <rect x="105" y="160" width="13" height="42" rx="4" fill="#312E81" />
+  <rect x="122" y="160" width="13" height="42" rx="4" fill="#1E1B4B" />
+  <rect x="103" y="196" width="15" height="12" rx="3" fill="#0F172A" />
+  <rect x="122" y="196" width="15" height="12" rx="3" fill="#0F172A" />
+  <rect x="103" y="196" width="15" height="2" fill="#F59E0B" />
+  <rect x="122" y="196" width="15" height="2" fill="#F59E0B" />
+
+  <!-- Robe Front -->
+  <path d="M96 108 L144 108 L138 170 L102 170 Z" fill="#3730A3" />
+
+  <!-- Floating Open Spell Tome High Above -->
+  <g transform="translate(100, 15)" filter="url(#sGlowStar)">
+    <path d="M0 16 Q20 8 40 16 L40 36 Q20 28 0 36 Z" fill="#0284C7" />
+    <path d="M20 12 L20 32" stroke="#FFFFFF" stroke-width="2" />
+  </g>
+
+  <!-- Raised Arms Holding Magic -->
+  <path d="M98 112 L72 82 L82 76 L104 114 Z" fill="#4338CA" />
+  <path d="M142 112 L168 82 L158 76 L136 114 Z" fill="#3730A3" />
+
+  <!-- Magic Orbs on Hands -->
+  <circle cx="76" cy="76" r="8" fill="#38BDF8" filter="url(#sGlowStar)" />
+  <circle cx="164" cy="76" r="8" fill="#38BDF8" filter="url(#sGlowStar)" />
+
+  <!-- Head & Hair -->
+  <rect x="114" y="94" width="12" height="15" fill="#FBCFE8" />
+  <rect x="106" y="68" width="28" height="30" rx="8" fill="#FFE4E6" />
+  <path d="M102 70 C100 46, 140 42, 142 68 C146 58, 138 46, 124 46 C112 46, 104 56, 102 70 Z" fill="#312E81" />
+  <path d="M102 70 L108 82 L114 70 L120 84 L126 70 L134 82 L142 68 L140 90 L136 76 L126 88 L120 76 L114 86 L104 72 Z" fill="#4338CA" />
+
+  <!-- Glasses -->
+  <rect x="110" y="78" width="9" height="7" rx="1.5" fill="none" stroke="#FDE047" stroke-width="1.5" />
+  <rect x="122" y="78" width="9" height="7" rx="1.5" fill="none" stroke="#FDE047" stroke-width="1.5" />
+  <line x1="119" y1="81" x2="122" y2="81" stroke="#FDE047" stroke-width="1.5" />
+
+  <!-- Happy Eyes & Smile -->
+  <path d="M111 81 Q114 77 117 81" stroke="#0284C7" stroke-width="2" fill="none" />
+  <path d="M123 81 Q126 77 129 81" stroke="#0284C7" stroke-width="2" fill="none" />
+  <path d="M116 88 Q120 93 124 88" stroke="#E11D48" stroke-width="2" fill="none" stroke-linecap="round" />
+
+  <!-- Sparkles -->
+  <polygon points="45,120 48,110 51,120 61,123 51,126 48,136 45,126 35,123" fill="#38BDF8" />
+  <polygon points="190,130 193,122 196,130 204,133 196,136 193,144 190,136 182,133" fill="#FDE047" />
+</svg>

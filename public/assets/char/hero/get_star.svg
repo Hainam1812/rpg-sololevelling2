@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <defs>
+    <radialGradient id="hStarAura" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.8"/>
+      <stop offset="60%" stop-color="#7C3AED" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#0A0E27" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="hGlowStar" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Big Victory Aura -->
+  <circle cx="120" cy="115" r="95" fill="url(#hStarAura)" />
+
+  <!-- Shadow -->
+  <ellipse cx="120" cy="214" rx="46" ry="11" fill="#050714" opacity="0.7" />
+
+  <!-- Radiating light rays -->
+  <path d="M120 40 L125 15 L120 20 L115 15 Z" fill="#FDE047" opacity="0.9" />
+  <path d="M70 70 L45 55 L52 62 Z" fill="#FDE047" opacity="0.8" />
+  <path d="M170 70 L195 55 L188 62 Z" fill="#FDE047" opacity="0.8" />
+
+  <!-- Floating Star above character -->
+  <g transform="translate(120, 48)" filter="url(#hGlowStar)">
+    <polygon points="0,-18 5,-5 18,-5 8,4 12,17 0,9 -12,17 -8,4 -18,-5 -5,-5" fill="#FDE047" />
+    <circle cx="0" cy="0" r="4" fill="#FFFFFF" />
+  </g>
+
+  <!-- Cape floating out in celebration -->
+  <path d="M96 110 L70 195 L105 200 L120 180 L135 200 L170 195 L144 110 Z" fill="#3B0764" />
+
+  <!-- Legs -->
+  <rect x="104" y="160" width="13" height="42" rx="4" fill="#1E293B" />
+  <rect x="123" y="160" width="13" height="42" rx="4" fill="#0F172A" />
+  <!-- Boots with glowing gold trim -->
+  <rect x="102" y="194" width="16" height="14" rx="3" fill="#090D1A" />
+  <rect x="122" y="194" width="16" height="14" rx="3" fill="#090D1A" />
+  <rect x="102" y="194" width="16" height="3" fill="#F59E0B" />
+  <rect x="122" y="194" width="16" height="3" fill="#F59E0B" />
+
+  <!-- Torso -->
+  <path d="M98 108 L142 108 L136 165 L104 165 Z" fill="#111827" />
+  <path d="M115 112 L125 112 L120 145 Z" fill="#F59E0B" filter="url(#hGlowStar)" />
+
+  <!-- Raised Arms in Victory! -->
+  <path d="M98 112 L70 85 L80 78 L104 115 Z" fill="#1E293B" />
+  <path d="M142 112 L170 85 L160 78 L136 115 Z" fill="#0F172A" />
+
+  <!-- Dagger raised in right hand -->
+  <polygon points="68,80 50,45 56,43 76,75" fill="#38BDF8" filter="url(#hGlowStar)" />
+  <polygon points="50,45 46,40 52,43" fill="#FFFFFF" />
+
+  <!-- Left fist in triumph -->
+  <circle cx="166" cy="82" r="7" fill="#FFE4E6" />
+
+  <!-- Neck & Head -->
+  <rect x="114" y="94" width="12" height="16" fill="#FBCFE8" />
+  <rect x="106" y="68" width="28" height="30" rx="8" fill="#FFE4E6" />
+
+  <!-- Anime Hair -->
+  <path d="M102 70 C100 46, 140 42, 142 68 C145 60, 138 50, 126 50 C114 50, 104 58, 102 70 Z" fill="#0F172A" />
+  <path d="M102 70 L108 82 L114 70 L120 84 L126 70 L134 82 L140 68 L144 88 L140 90 L138 75 L128 88 L120 75 L112 86 L102 72 Z" fill="#1E1B4B" />
+
+  <!-- Eyes in happy confident smile -->
+  <path d="M110 82 Q114 78 118 82" stroke="#06B6D4" stroke-width="3" fill="none" stroke-linecap="round" />
+  <path d="M122 82 Q126 78 130 82" stroke="#06B6D4" stroke-width="3" fill="none" stroke-linecap="round" />
+  <!-- Confident Smile -->
+  <path d="M116 90 Q120 95 124 90" stroke="#E11D48" stroke-width="2" fill="none" stroke-linecap="round" />
+
+  <!-- Floating Sparkles around hero -->
+  <polygon points="45,120 48,110 51,120 61,123 51,126 48,136 45,126 35,123" fill="#FDE047" />
+  <polygon points="190,130 193,122 196,130 204,133 196,136 193,144 190,136 182,133" fill="#38BDF8" />
+  <polygon points="120,185 122,179 124,185 130,187 124,189 122,195 120,189 114,187" fill="#C4B5FD" />
+</svg>

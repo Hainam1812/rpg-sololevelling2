@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <defs>
+    <radialGradient id="sAura" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#06B6D4" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#0A0E27" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="sGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Aura Background -->
+  <circle cx="120" cy="130" r="75" fill="url(#sAura)" />
+
+  <!-- Shadow -->
+  <ellipse cx="120" cy="210" rx="42" ry="10" fill="#050714" opacity="0.6" />
+
+  <!-- Scholar Robe Back -->
+  <path d="M92 110 L80 198 L110 200 L120 185 L130 200 L160 198 L148 110 Z" fill="#1E1B4B" />
+
+  <!-- Legs / Robe Lower -->
+  <rect x="105" y="160" width="13" height="42" rx="4" fill="#312E81" />
+  <rect x="122" y="160" width="13" height="42" rx="4" fill="#1E1B4B" />
+  <!-- Shoes -->
+  <rect x="103" y="196" width="15" height="12" rx="3" fill="#0F172A" />
+  <rect x="122" y="196" width="15" height="12" rx="3" fill="#0F172A" />
+  <rect x="103" y="196" width="15" height="2" fill="#38BDF8" />
+  <rect x="122" y="196" width="15" height="2" fill="#38BDF8" />
+
+  <!-- Scholar Robe Front -->
+  <path d="M98 108 L142 108 L136 170 L104 170 Z" fill="#3730A3" />
+  <!-- Cyan Spellbook / Knowledge Ribbon -->
+  <path d="M118 110 L122 110 L122 165 L118 165 Z" fill="#38BDF8" filter="url(#sGlow)" />
+
+  <!-- Floating Spell Tome / Book in Left Hand -->
+  <g transform="translate(64, 125)">
+    <rect x="0" y="0" width="26" height="34" rx="3" fill="#0F172A" />
+    <rect x="3" y="2" width="20" height="30" rx="2" fill="#4338CA" />
+    <line x1="6" y1="8" x2="20" y2="8" stroke="#38BDF8" stroke-width="2" />
+    <line x1="6" y1="14" x2="18" y2="14" stroke="#A5B4FC" stroke-width="1.5" />
+    <line x1="6" y1="20" x2="16" y2="20" stroke="#A5B4FC" stroke-width="1.5" />
+    <circle cx="13" cy="26" r="3" fill="#38BDF8" filter="url(#sGlow)" />
+  </g>
+
+  <!-- Arms -->
+  <path d="M98 112 L84 135 L92 138 L104 116 Z" fill="#4338CA" />
+  <path d="M142 112 L154 138 L146 142 L136 116 Z" fill="#3730A3" />
+
+  <!-- Head & Hair -->
+  <rect x="114" y="96" width="12" height="15" fill="#FBCFE8" />
+  <rect x="106" y="70" width="28" height="30" rx="8" fill="#FFE4E6" />
+  <!-- Sleek Hair with Violet Highlight -->
+  <path d="M102 72 C100 48, 140 45, 142 70 C146 60, 138 48, 124 48 C112 48, 104 58, 102 72 Z" fill="#312E81" />
+  <path d="M102 72 L108 84 L114 72 L120 86 L126 72 L134 84 L142 70 L140 92 L136 78 L126 90 L120 78 L114 88 L104 74 Z" fill="#4338CA" />
+
+  <!-- Smart Glasses -->
+  <rect x="110" y="80" width="9" height="7" rx="1.5" fill="none" stroke="#38BDF8" stroke-width="1.5" />
+  <rect x="122" y="80" width="9" height="7" rx="1.5" fill="none" stroke="#38BDF8" stroke-width="1.5" />
+  <line x1="119" y1="83" x2="122" y2="83" stroke="#38BDF8" stroke-width="1.5" />
+
+  <!-- Eyes behind glasses -->
+  <circle cx="114" cy="83" r="1.5" fill="#0284C7" />
+  <circle cx="126" cy="83" r="1.5" fill="#0284C7" />
+
+  <!-- Magical Glyphs floating around -->
+  <circle cx="168" cy="115" r="2" fill="#38BDF8" opacity="0.8" />
+  <circle cx="62" cy="110" r="2" fill="#A5B4FC" opacity="0.8" />
+  <circle cx="120" cy="54" r="1.5" fill="#38BDF8" opacity="0.7" />
+</svg>

@@ -1,0 +1,46 @@
+[
+  {
+    "id": "hero",
+    "displayName": "Thợ Săn Jinwoo",
+    "tagline": "Thợ săn tập sự sẵn sàng thăng cấp từng ngày",
+    "idle": {
+      "src": "assets/char/hero/main.svg",
+      "width": 240,
+      "height": 240
+    },
+    "reward": {
+      "src": "assets/char/hero/get_star.svg",
+      "width": 240,
+      "height": 240,
+      "durationMs": 5000
+    },
+    "pixelArt": true,
+    "stage": {
+      "scale": 0.8,
+      "offsetY": 0
+    },
+    "placeholder": true
+  },
+  {
+    "id": "scholar",
+    "displayName": "Pháp Sư Học Thuật",
+    "tagline": "Học giả tri thức làm chủ thư viện và đồ án",
+    "idle": {
+      "src": "assets/char/scholar/main.svg",
+      "width": 240,
+      "height": 240
+    },
+    "reward": {
+      "src": "assets/char/scholar/get_star.svg",
+      "width": 240,
+      "height": 240,
+      "durationMs": 5000
+    },
+    "pixelArt": true,
+    "stage": {
+      "scale": 0.8,
+      "offsetY": 0
+    },
+    "placeholder": true
+  }
+]

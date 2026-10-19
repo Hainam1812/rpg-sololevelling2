@@ -1,0 +1,169 @@
+import React from 'react';
+import { useGame } from '../../store/GameContext.js';
+import { CharacterSprite } from './CharacterSprite.js';
+import { getCosmeticById } from '../../data/cosmetics.js';
+import charactersData from '../../data/characters.json' with { type: 'json' };
+
+interface CharacterStageProps {
+  characterId?: string;
+  size?: 'mini' | 'sm' | 'md' | 'lg';
+  className?: string;
+  previewCosmetics?: Partial<Record<string, string>>;
+  showNameplate?: boolean;
+}
+
+export const CharacterStage: React.FC<CharacterStageProps> = ({
+  characterId,
+  size = 'md',
+  className = '',
+  previewCosmetics,
+  showNameplate = false,
+}) => {
+  const { state, isCelebrating } = useGame();
+
+  const activeCharId = characterId || state.profile.characterId || 'hero';
+  const charDef = charactersData.find((c: any) => c.id === activeCharId) || charactersData[0];
+
+  // Resolve equipped cosmetics, allowing preview override
+  const equipped = {
+    ...state.equippedCosmetics,
+    ...(previewCosmetics || {}),
+  };
+
+  const backdropCos = getCosmeticById(equipped.backdrop || '');
+  const frameCos = getCosmeticById(equipped.frame || '');
+  const auraCos = getCosmeticById(equipped.aura || '');
+  const companionCos = getCosmeticById(equipped.companion || '');
+  const nameplateCos = getCosmeticById(equipped.nameplate || '');
+
+  const sizeContainerStyles = {
+    mini: 'w-10 h-10 rounded-full',
+    sm: 'w-24 h-24 rounded-xl',
+    md: 'w-48 h-48 sm:w-56 sm:h-56 rounded-2xl',
+    lg: 'w-64 h-64 sm:w-80 sm:h-80 rounded-3xl',
+  };
+
+  const isMini = size === 'mini';
+
+  // Mini avatar mode (under 64px)
+  if (isMini) {
+    return (
+      <div
+        className={`relative shrink-0 overflow-hidden border-2 border-violet-400/60 flex items-center justify-center bg-[#161B40] ${sizeContainerStyles.mini} ${className}`}
+        aria-label={`Avatar nhân vật ${charDef?.displayName || 'Adventurer'}`}
+      >
+        <CharacterSprite characterId={activeCharId} isCelebrating={isCelebrating} scale={0.9} />
+      </div>
+    );
+  }
+
+  // Backdrop gradient / pattern
+  const backdropColor = backdropCos?.previewColor || '#161B40';
+
+  return (
+    <div className={`flex flex-col items-center ${className}`}>
+      <div
+        className={`relative shrink-0 flex items-center justify-center overflow-hidden border border-slate-700/60 shadow-2xl transition-all duration-300 ${sizeContainerStyles[size]}`}
+        style={{ backgroundColor: backdropColor }}
+        aria-label={`Sân khấu nhân vật ${charDef?.displayName || 'Adventurer'}`}
+      >
+        {/* Layer 1: Backdrop scenery SVG patterns */}
+        <div className="absolute inset-0 pointer-events-none opacity-25">
+          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="stageGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(196, 181, 253, 0.2)" strokeWidth="0.8" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#stageGrid)" />
+          </svg>
+        </div>
+
+        {/* Layer 2: Back Aura */}
+        {auraCos && (
+          <div
+            className={`absolute inset-0 pointer-events-none transition-opacity duration-500 rounded-full blur-xl ${
+              isCelebrating ? 'opacity-90 scale-110 animate-pulse-aura' : 'opacity-40 animate-pulse'
+            }`}
+            style={{
+              background:
+                auraCos.id === 'au-cyan-spark'
+                  ? 'radial-gradient(circle, rgba(6,182,212,0.6) 0%, transparent 70%)'
+                  : auraCos.id === 'au-gold-radiance'
+                  ? 'radial-gradient(circle, rgba(245,158,11,0.7) 0%, transparent 70%)'
+                  : 'radial-gradient(circle, rgba(124,58,237,0.6) 0%, transparent 70%)',
+            }}
+          />
+        )}
+
+        {/* Layer 3: Character Sprite with Gear */}
+        <div className="relative z-10 w-full h-full flex items-center justify-center p-3">
+          <CharacterSprite
+            key={activeCharId} // Keeps key stable across cosmetic changes!
+            characterId={activeCharId}
+            isCelebrating={isCelebrating}
+            scale={size === 'lg' ? 1.1 : size === 'sm' ? 0.75 : 0.95}
+          />
+        </div>
+
+        {/* Layer 4: Frame Border Overlay */}
+        {frameCos && (
+          <div
+            className={`absolute inset-0 pointer-events-none z-20 rounded-inherit border-2 ${
+              frameCos.id === 'fr-rune-violet'
+                ? 'border-violet-500 shadow-[inset_0_0_12px_rgba(124,58,237,0.5)]'
+                : frameCos.id === 'fr-cyber-neon'
+                ? 'border-cyan-400 shadow-[inset_0_0_14px_rgba(6,182,212,0.6)]'
+                : frameCos.id === 'fr-gold-slayer'
+                ? 'border-amber-400 shadow-[inset_0_0_16px_rgba(245,158,11,0.6)]'
+                : 'border-slate-600'
+            }`}
+          />
+        )}
+
+        {/* Layer 5: Companion Pet */}
+        {companionCos && (
+          <div className="absolute bottom-2 right-2 z-30 pointer-events-none animate-bounce">
+            <div className="w-8 h-8 rounded-full bg-indigo-950/90 border border-violet-400/60 flex items-center justify-center text-xs shadow-md">
+              {companionCos.id === 'cp-cat-dorm'
+                ? '🐱'
+                : companionCos.id === 'cp-owl-scholar'
+                ? '🦉'
+                : companionCos.id === 'cp-mini-slime'
+                ? '💧'
+                : companionCos.id === 'cp-dragon-pup'
+                ? '🐲'
+                : '🤖'}
+            </div>
+          </div>
+        )}
+
+        {/* Layer 6: Front Aura particles when celebrating */}
+        {isCelebrating && (
+          <div className="absolute inset-0 pointer-events-none z-40 flex items-center justify-center">
+            <div className="w-full h-full animate-sparkle flex items-center justify-center">
+              <span className="text-amber-300 text-lg absolute top-4 left-4">✦</span>
+              <span className="text-cyan-300 text-base absolute top-6 right-6">✦</span>
+              <span className="text-fuchsia-300 text-xl absolute bottom-8 left-8">✦</span>
+              <span className="text-yellow-300 text-sm absolute bottom-5 right-10">✦</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Nameplate & Title if requested */}
+      {showNameplate && (
+        <div className="mt-3 flex flex-col items-center">
+          <div className="px-4 py-1 rounded-lg bg-[#0F132E] border border-violet-500/40 text-center shadow-lg">
+            <div className="text-sm font-bold text-slate-100">
+              {state.profile.nickname || charDef?.displayName || 'Adventurer'}
+            </div>
+            <div className="text-[10px] text-violet-300 tracking-wider uppercase font-semibold">
+              {charDef?.tagline || 'Chiến Binh Solo'}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

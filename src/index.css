@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-main: #0A0E27;
+    --bg-surface: #161B40;
+    --bg-surface-elevated: #1F2656;
+    --primary-purple: #5B35C9;
+    --electric-violet: #7C3AED;
+    --neon-cyan: #06B6D4;
+    --lavender: #C4B5FD;
+    --gold-boss: #F59E0B;
+    --easy-green: #10B981;
+    --normal-blue: #3B82F6;
+    --hard-orange: #F97316;
+    --overdue-red: #EF4444;
+  }
+
+  body {
+    font-family: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-main);
+    color: #F8FAFC;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, .font-heading {
+    font-family: 'Chakra Petch', 'Be Vietnam Pro', sans-serif;
+  }
+
+  .font-pixel {
+    font-family: 'Silkscreen', monospace;
+  }
+}
+
+/* Custom RPG Glows & Utilities */
+.rpg-border-glow {
+  box-shadow: 0 0 15px -3px rgba(124, 58, 237, 0.3), inset 0 0 10px rgba(124, 58, 237, 0.15);
+}
+
+.rpg-border-cyan {
+  box-shadow: 0 0 15px -3px rgba(6, 182, 212, 0.35);
+}
+
+.rpg-border-gold {
+  box-shadow: 0 0 20px -2px rgba(245, 158, 11, 0.4);
+}
+
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* Keyframe animations */
+@keyframes xpFloatUp {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.8);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1.1);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(-24px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-36px) scale(0.9);
+  }
+}
+
+@keyframes bounceCelebration {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  25% {
+    transform: translateY(-14px) scale(1.05);
+  }
+  50% {
+    transform: translateY(0) scale(0.98);
+  }
+  75% {
+    transform: translateY(-7px) scale(1.02);
+  }
+}
+
+@keyframes pulseAura {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(0.98);
+    filter: drop-shadow(0 0 8px rgba(124, 58, 237, 0.5));
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.04);
+    filter: drop-shadow(0 0 18px rgba(6, 182, 212, 0.8));
+  }
+}
+
+@keyframes sparkleSpin {
+  0% {
+    transform: rotate(0deg) scale(0.8);
+    opacity: 0.3;
+  }
+  50% {
+    transform: rotate(180deg) scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(360deg) scale(0.8);
+    opacity: 0.3;
+  }
+}
+
+.animate-xp-float {
+  animation: xpFloatUp 1.4s ease-out forwards;
+}
+
+.animate-celebrate-bounce {
+  animation: bounceCelebration 0.7s cubic-bezier(0.28, 0.84, 0.42, 1) infinite;
+}
+
+.animate-pulse-aura {
+  animation: pulseAura 2.5s ease-in-out infinite;
+}
+
+.animate-sparkle {
+  animation: sparkleSpin 3s linear infinite;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
