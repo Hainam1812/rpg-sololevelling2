@@ -147,3 +147,23 @@ export async function deleteCharBlob(id: string): Promise<boolean> {
     }
   });
 }
+
+/**
+ * Clear all uploaded custom character and gear blobs from IndexedDB
+ */
+export async function clearAllCustomBlobs(): Promise<boolean> {
+  const db = await openDb();
+  if (!db) return false;
+
+  return new Promise(resolve => {
+    try {
+      const tx = db.transaction([STORE_NAME, CHAR_STORE_NAME], 'readwrite');
+      tx.objectStore(STORE_NAME).clear();
+      tx.objectStore(CHAR_STORE_NAME).clear();
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    } catch {
+      resolve(false);
+    }
+  });
+}

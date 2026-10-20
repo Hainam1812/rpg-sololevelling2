@@ -27,6 +27,7 @@ export function getDefaultState(): GameState {
     seenCosmetics: ['bd-starter-dorm', 'fr-wooden-apprentice', 'tt-auto-level', 'np-simple-slate'],
     seenGear: [],
     customGearMeta: [],
+    equippedCustomGearIds: [],
     customCharacters: [],
     examHistory: [],
     personalExams: [],
@@ -68,6 +69,7 @@ export function loadStateFromStorage(): GameState {
       examHistory: Array.isArray(parsed.examHistory) ? parsed.examHistory : [],
       personalExams: Array.isArray(parsed.personalExams) ? parsed.personalExams : [],
       customGearMeta: Array.isArray(parsed.customGearMeta) ? parsed.customGearMeta : [],
+      equippedCustomGearIds: Array.isArray(parsed.equippedCustomGearIds) ? parsed.equippedCustomGearIds : [],
       customCharacters: Array.isArray(parsed.customCharacters) ? parsed.customCharacters : [],
       contactMessages: Array.isArray(parsed.contactMessages) ? parsed.contactMessages : [],
       schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -96,4 +98,19 @@ export function saveStateToStorage(state: GameState): void {
       console.warn('Could not write state to localStorage (quota or privacy setting):', err);
     }
   }, 200);
+}
+
+export function saveStateToStorageImmediate(state: GameState): void {
+  if (typeof window === 'undefined') return;
+
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+    saveTimeout = null;
+  }
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (err) {
+    console.warn('Could not write state to localStorage immediately:', err);
+  }
 }

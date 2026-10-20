@@ -32,6 +32,7 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
   const [charName, setCharName] = useState('');
   const [charTagline, setCharTagline] = useState('');
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [charToDelete, setCharToDelete] = useState<{ id: string; displayName: string } | null>(null);
 
   if (!isOpen) return null;
 
@@ -316,17 +317,11 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
 
                   <button
                     type="button"
-                    onClick={async e => {
+                    onClick={e => {
                       e.stopPropagation();
-                      if (confirm(`Xóa nhân vật tự tạo "${char.displayName}"?`)) {
-                        await deleteCharBlob(char.id);
-                        dispatch({ type: 'REMOVE_CUSTOM_CHARACTER', payload: { id: char.id } });
-                        if (selectedId === char.id) {
-                          setSelectedId('hero');
-                        }
-                      }
+                      setCharToDelete({ id: char.id, displayName: char.displayName });
                     }}
-                    className="absolute top-2 left-2 p-1 text-slate-500 hover:text-rose-400 rounded transition-colors"
+                    className="absolute top-2 left-2 p-1 text-slate-500 hover:text-rose-400 rounded transition-colors cursor-pointer"
                     title="Xóa nhân vật"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -344,6 +339,41 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
           </Button>
         </div>
       </div>
+
+      {/* In-app Character Deletion Modal */}
+      {charToDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-sm bg-[#161B40] border border-rose-500/50 rounded-2xl p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-2 text-rose-400 font-bold font-heading">
+              <Trash2 className="w-5 h-5" />
+              <span>Xóa Nhân Vật 2D Pixel</span>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Bạn có chắc muốn xóa nhân vật <strong className="text-white font-bold">"{charToDelete.displayName}"</strong>? Ảnh GIF/PNG của nhân vật sẽ được xóa vĩnh viễn khỏi thiết bị này.
+            </p>
+            <div className="flex gap-2 justify-end pt-1">
+              <Button size="sm" variant="secondary" onClick={() => setCharToDelete(null)}>
+                Hủy
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={async () => {
+                  const targetId = charToDelete.id;
+                  setCharToDelete(null);
+                  await deleteCharBlob(targetId);
+                  dispatch({ type: 'REMOVE_CUSTOM_CHARACTER', payload: { id: targetId } });
+                  if (selectedId === targetId) {
+                    setSelectedId('hero');
+                  }
+                }}
+              >
+                Xóa Vĩnh Viễn
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

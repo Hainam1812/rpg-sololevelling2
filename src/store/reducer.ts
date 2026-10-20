@@ -24,12 +24,16 @@ export type Action =
   | { type: 'UNEQUIP_ALL_COSMETICS' }
   | { type: 'EQUIP_GEAR'; payload: { characterId: string; slot: GearSlot; gearId: string } }
   | { type: 'UNEQUIP_GEAR'; payload: { characterId: string; slot: GearSlot } }
-  | { type: 'UNEQUIP_ALL_GEAR'; payload: { characterId: string } }
+  | { type: 'UNEQUIP_ALL_GEAR'; payload?: { characterId?: string } }
   | { type: 'MARK_COSMETIC_SEEN'; payload: { id: string } }
   | { type: 'MARK_GEAR_SEEN'; payload: { id: string } }
   | { type: 'ADD_CUSTOM_GEAR_META'; payload: { item: CustomGearItem } }
   | { type: 'REMOVE_CUSTOM_GEAR_META'; payload: { id: string } }
   | { type: 'UPDATE_CUSTOM_GEAR_ADJUST'; payload: { id: string; scale: number; offsetX: number; offsetY: number; flipX: boolean } }
+  | { type: 'TOGGLE_CUSTOM_GEAR_EQUIP'; payload: { id: string } }
+  | { type: 'UNEQUIP_ALL_CUSTOM_GEAR' }
+  | { type: 'UNEQUIP_EVERYTHING'; payload?: { characterId?: string } }
+  | { type: 'CLEAR_ALL_CUSTOM_GIFS' }
   | { type: 'ADD_CUSTOM_CHARACTER'; payload: { character: CustomCharacterDef } }
   | { type: 'REMOVE_CUSTOM_CHARACTER'; payload: { id: string } }
   | { type: 'ADD_TO_CART'; payload: { packageId: string } }
@@ -267,12 +271,16 @@ export function gameReducer(
     }
 
     case 'UNEQUIP_ALL_GEAR': {
-      const { characterId } = action.payload;
+      const charId = action.payload?.characterId;
       const nextGear = { ...state.equippedGear };
-      delete nextGear[characterId];
+      if (charId) {
+        delete nextGear[charId];
+      }
       nextState = {
         ...state,
-        equippedGear: nextGear,
+        equippedGear: charId ? nextGear : {},
+        // Also unequip any custom / preset accessories so the character is completely stripped of gear
+        equippedCustomGearIds: [],
       };
       break;
     }
@@ -298,17 +306,21 @@ export function gameReducer(
     }
 
     case 'ADD_CUSTOM_GEAR_META': {
+      const currentEquipped = state.equippedCustomGearIds || state.customGearMeta.map(m => m.id);
       nextState = {
         ...state,
         customGearMeta: [action.payload.item, ...state.customGearMeta].slice(0, 30),
+        equippedCustomGearIds: [...currentEquipped, action.payload.item.id],
       };
       break;
     }
 
     case 'REMOVE_CUSTOM_GEAR_META': {
+      const currentEquipped = state.equippedCustomGearIds || state.customGearMeta.map(m => m.id);
       nextState = {
         ...state,
         customGearMeta: state.customGearMeta.filter(i => i.id !== action.payload.id),
+        equippedCustomGearIds: currentEquipped.filter(id => id !== action.payload.id),
       };
       break;
     }
@@ -320,6 +332,55 @@ export function gameReducer(
         customGearMeta: state.customGearMeta.map(item =>
           item.id === id ? { ...item, scale, offsetX, offsetY, flipX } : item
         ),
+      };
+      break;
+    }
+
+    case 'TOGGLE_CUSTOM_GEAR_EQUIP': {
+      const currentEquipped = state.equippedCustomGearIds || state.customGearMeta.map(m => m.id);
+      const isEquipped = currentEquipped.includes(action.payload.id);
+      nextState = {
+        ...state,
+        equippedCustomGearIds: isEquipped
+          ? currentEquipped.filter(x => x !== action.payload.id)
+          : [...currentEquipped, action.payload.id],
+      };
+      break;
+    }
+
+    case 'UNEQUIP_ALL_CUSTOM_GEAR': {
+      nextState = {
+        ...state,
+        equippedCustomGearIds: [],
+      };
+      break;
+    }
+
+    case 'UNEQUIP_EVERYTHING': {
+      const charId = action.payload?.characterId;
+      const nextGear = { ...state.equippedGear };
+      if (charId) {
+        delete nextGear[charId];
+      }
+      nextState = {
+        ...state,
+        equippedGear: charId ? nextGear : {},
+        equippedCustomGearIds: [],
+        equippedCosmetics: {},
+      };
+      break;
+    }
+
+    case 'CLEAR_ALL_CUSTOM_GIFS': {
+      nextState = {
+        ...state,
+        customCharacters: [],
+        customGearMeta: [],
+        equippedCustomGearIds: [],
+        profile: {
+          ...state.profile,
+          characterId: 'hero',
+        },
       };
       break;
     }

@@ -52,6 +52,7 @@ export const WardrobePage: React.FC = () => {
   const [offsetY, setOffsetY] = useState(0);
   const [flipX, setFlipX] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{ id: string; name: string } | null>(null);
 
   const activeCharId = state.profile.characterId || 'hero';
   const unlockedCosmetics = selectUnlockedCosmetics(state, now);
@@ -208,7 +209,7 @@ export const WardrobePage: React.FC = () => {
               </Button>
             </div>
 
-            <div className="w-full flex items-center justify-between pt-1">
+            <div className="w-full flex flex-col gap-1.5 pt-1">
               {previewCosmetic ? (
                 <Button
                   variant="secondary"
@@ -219,20 +220,37 @@ export const WardrobePage: React.FC = () => {
                   Hủy xem thử
                 </Button>
               ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    if (activeTab === 'stage') {
-                      dispatch({ type: 'UNEQUIP_ALL_COSMETICS' });
-                    } else if (activeTab === 'gear') {
-                      dispatch({ type: 'UNEQUIP_ALL_GEAR', payload: { characterId: activeCharId } });
-                    }
-                  }}
-                  className="text-xs text-slate-400 hover:text-rose-400"
-                >
-                  Gỡ hết
-                </Button>
+                <div className="flex items-center justify-between gap-1 w-full pt-1 border-t border-slate-700/40">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={<RotateCcw className="w-3.5 h-3.5" />}
+                    onClick={() => {
+                      if (activeTab === 'stage') {
+                        dispatch({ type: 'UNEQUIP_ALL_COSMETICS' });
+                      } else if (activeTab === 'gear') {
+                        dispatch({ type: 'UNEQUIP_ALL_GEAR', payload: { characterId: activeCharId } });
+                      } else {
+                        dispatch({ type: 'UNEQUIP_ALL_CUSTOM_GEAR' });
+                      }
+                    }}
+                    className="text-xs text-slate-300 hover:text-amber-400 py-1"
+                  >
+                    Gỡ {activeTab === 'stage' ? 'sân khấu' : activeTab === 'gear' ? 'trang phục' : 'phụ kiện'}
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      dispatch({ type: 'UNEQUIP_EVERYTHING', payload: { characterId: activeCharId } });
+                    }}
+                    className="text-xs text-rose-400 hover:text-rose-300 py-1 font-semibold"
+                    title="Gỡ toàn bộ trang bị, phụ kiện và sân khấu của nhân vật"
+                  >
+                    Gỡ sạch tất cả
+                  </Button>
+                </div>
               )}
             </div>
           </Card>
@@ -482,7 +500,11 @@ export const WardrobePage: React.FC = () => {
                     return (
                       <div
                         key={preset.id}
-                        className="p-2.5 rounded-xl bg-[#0F132E] border border-slate-700 hover:border-cyan-400/60 transition-all flex flex-col items-center text-center space-y-2 select-none"
+                        className={`p-2.5 rounded-xl border transition-all flex flex-col items-center text-center space-y-2 select-none ${
+                          isAlreadyEquipped
+                            ? 'bg-cyan-950/40 border-cyan-400/80 shadow-md shadow-cyan-950/50'
+                            : 'bg-[#0F132E] border-slate-700 hover:border-cyan-400/60'
+                        }`}
                       >
                         <div className="w-14 h-14 flex items-center justify-center bg-[#161B40] rounded-lg p-1 border border-slate-800">
                           <img
@@ -500,8 +522,9 @@ export const WardrobePage: React.FC = () => {
                           fullWidth
                           className="text-[10px] py-1"
                           onClick={() => {
-                            if (isAlreadyEquipped) {
-                              dispatch({ type: 'REMOVE_CUSTOM_GEAR_META', payload: { id: preset.id } });
+                            const isPresentInMeta = state.customGearMeta.some(c => c.id === preset.id);
+                            if (isPresentInMeta) {
+                              dispatch({ type: 'TOGGLE_CUSTOM_GEAR_EQUIP', payload: { id: preset.id } });
                             } else {
                               dispatch({
                                 type: 'ADD_CUSTOM_GEAR_META',
@@ -522,7 +545,7 @@ export const WardrobePage: React.FC = () => {
                             }
                           }}
                         >
-                          {isAlreadyEquipped ? 'Đang đeo' : '+ Đeo ngay'}
+                          {isAlreadyEquipped ? 'Đang đeo (Bấm gỡ)' : '+ Đeo vào'}
                         </Button>
                       </div>
                     );
@@ -563,37 +586,58 @@ export const WardrobePage: React.FC = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {customItems.map(item => (
-                    <Card key={item.id} variant="surface" className="p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-cyan-400 uppercase font-pixel">
-                          {item.slot}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (confirm(`Xóa món đồ "${item.name}"?`)) {
-                              await deleteGearBlob(item.id);
-                              dispatch({ type: 'REMOVE_CUSTOM_GEAR_META', payload: { id: item.id } });
-                            }
-                          }}
-                          className="text-slate-500 hover:text-rose-400 p-1 cursor-pointer"
+                  {customItems.map(item => {
+                    const isEquipped = (
+                      state.equippedCustomGearIds !== undefined
+                        ? state.equippedCustomGearIds
+                        : state.customGearMeta.map(m => m.id)
+                    ).includes(item.id);
+
+                    return (
+                      <Card
+                        key={item.id}
+                        variant="surface"
+                        className={`p-4 space-y-3 border-2 transition-all ${
+                          isEquipped
+                            ? 'border-cyan-500/70 bg-cyan-950/20 shadow-md shadow-cyan-950/40'
+                            : 'border-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-cyan-400 uppercase font-pixel">
+                            {item.slot}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setItemToDelete({ id: item.id, name: item.name })}
+                            className="text-slate-500 hover:text-rose-400 p-1 cursor-pointer transition-colors"
+                            title="Xóa phụ kiện này"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="h-20 bg-[#0F132E] rounded-xl flex items-center justify-center p-2 border border-slate-800">
+                          {item.imageBlobUrl ? (
+                            <img src={item.imageBlobUrl} alt={item.name} className="max-h-full object-contain pixelated" />
+                          ) : (
+                            <span className="text-xs text-slate-500 font-pixel">Custom Item</span>
+                          )}
+                        </div>
+
+                        <div className="font-bold text-sm text-slate-100">{item.name}</div>
+
+                        <Button
+                          variant={isEquipped ? 'secondary' : 'cyan'}
+                          size="sm"
+                          fullWidth
+                          onClick={() => dispatch({ type: 'TOGGLE_CUSTOM_GEAR_EQUIP', payload: { id: item.id } })}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-
-                      <div className="h-20 bg-[#0F132E] rounded-xl flex items-center justify-center p-2 border border-slate-800">
-                        {item.imageBlobUrl ? (
-                          <img src={item.imageBlobUrl} alt={item.name} className="max-h-full object-contain pixelated" />
-                        ) : (
-                          <span className="text-xs text-slate-500 font-pixel">Custom Item</span>
-                        )}
-                      </div>
-
-                      <div className="font-bold text-sm text-slate-100">{item.name}</div>
-                    </Card>
-                  ))}
+                          {isEquipped ? 'Đang đeo (Bấm để gỡ)' : 'Đeo vào nhân vật'}
+                        </Button>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -655,20 +699,30 @@ export const WardrobePage: React.FC = () => {
               </select>
             </div>
 
-            {/* Step 3: Alignment preview controls */}
+            {/* Step 3: Alignment preview controls & Slider Explanation */}
             {uploadPreviewUrl && (
               <div className="space-y-3 pt-2 border-t border-slate-700">
-                <div className="text-xs font-bold text-slate-300">
-                  4. Căn chỉnh vị trí trên nhân vật:
+                <div className="p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-xs text-slate-300 space-y-1">
+                  <div className="font-bold text-cyan-300 flex items-center gap-1.5 font-heading">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Thanh trượt là gì?</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    Dùng các thanh trượt bên dưới để chỉnh <strong>Kích thước (Scale)</strong> và <strong>Vị trí tọa độ (X & Y)</strong> nhằm gắn phụ kiện vừa khít lên đầu, mắt hoặc tay của nhân vật.
+                  </p>
                 </div>
 
-                <div className="h-40 bg-[#0F132E] rounded-2xl flex items-center justify-center relative overflow-hidden border border-slate-800">
-                  <div className="relative w-32 h-32 flex items-center justify-center">
-                    <CharacterSprite characterId={activeCharId} scale={0.7} />
+                <div className="text-xs font-bold text-slate-200">
+                  4. Xem thử trực tiếp trên nhân vật:
+                </div>
+
+                <div className="h-44 bg-[#0F132E] rounded-2xl flex items-center justify-center relative overflow-hidden border border-slate-800">
+                  <div className="relative w-36 h-36 flex items-center justify-center">
+                    <CharacterSprite characterId={activeCharId} scale={0.75} />
                     <img
                       src={uploadPreviewUrl}
                       alt="Xem thử căn chỉnh"
-                      className="absolute pointer-events-none"
+                      className="absolute pointer-events-none pixelated"
                       style={{
                         transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale}) ${
                           flipX ? 'scaleX(-1)' : ''
@@ -678,54 +732,100 @@ export const WardrobePage: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Quick position alignment presets */}
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-bold text-slate-400">Gợi ý vị trí nhanh:</span>
+                  <div className="grid grid-cols-4 gap-1.5 text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => { setOffsetX(0); setOffsetY(-34); setScale(1.1); }}
+                      className="px-2 py-1.5 rounded-lg bg-[#0F132E] hover:bg-cyan-900/40 border border-slate-700 text-slate-200 cursor-pointer"
+                    >
+                      🎓 Lên đầu
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setOffsetX(0); setOffsetY(-12); setScale(1.0); }}
+                      className="px-2 py-1.5 rounded-lg bg-[#0F132E] hover:bg-cyan-900/40 border border-slate-700 text-slate-200 cursor-pointer"
+                    >
+                      👓 Đeo mắt
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setOffsetX(-16); setOffsetY(12); setScale(1.0); }}
+                      className="px-2 py-1.5 rounded-lg bg-[#0F132E] hover:bg-cyan-900/40 border border-slate-700 text-slate-200 cursor-pointer"
+                    >
+                      ☕ Cầm tay
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setOffsetX(0); setOffsetY(0); setScale(1.0); }}
+                      className="px-2 py-1.5 rounded-lg bg-[#0F132E] hover:bg-cyan-900/40 border border-slate-700 text-slate-200 cursor-pointer"
+                    >
+                      🔄 Về giữa
+                    </button>
+                  </div>
+                </div>
+
                 {/* Adjust Sliders */}
-                <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="space-y-2.5 pt-1 text-xs">
                   <div>
-                    <label className="text-[11px] text-slate-400">X: {offsetX}px</label>
+                    <div className="flex justify-between text-[11px] text-slate-300 font-semibold mb-1">
+                      <span>Kích thước (Scale):</span>
+                      <span className="text-cyan-300 font-bold">{Math.round(scale * 100)}%</span>
+                    </div>
                     <input
                       type="range"
-                      min="-50"
-                      max="50"
-                      value={offsetX}
-                      onChange={e => setOffsetX(parseInt(e.target.value, 10))}
-                      className="w-full accent-cyan-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] text-slate-400">Y: {offsetY}px</label>
-                    <input
-                      type="range"
-                      min="-50"
-                      max="50"
-                      value={offsetY}
-                      onChange={e => setOffsetY(parseInt(e.target.value, 10))}
-                      className="w-full accent-cyan-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] text-slate-400">Scale: {scale.toFixed(1)}x</label>
-                    <input
-                      type="range"
-                      min="0.5"
-                      max="2"
-                      step="0.1"
+                      min="0.3"
+                      max="2.5"
+                      step="0.05"
                       value={scale}
                       onChange={e => setScale(parseFloat(e.target.value))}
-                      className="w-full accent-cyan-400"
+                      className="w-full accent-cyan-400 cursor-pointer"
                     />
                   </div>
 
-                  <div className="flex items-center pt-3">
-                    <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="flex justify-between text-[11px] text-slate-300 font-semibold mb-1">
+                        <span>Trục Ngang (X):</span>
+                        <span className="text-cyan-300 font-bold">{offsetX > 0 ? `+${offsetX}px (Phải)` : offsetX < 0 ? `${offsetX}px (Trái)` : '0px'}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-60"
+                        max="60"
+                        value={offsetX}
+                        onChange={e => setOffsetX(parseInt(e.target.value, 10))}
+                        className="w-full accent-cyan-400 cursor-pointer"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-[11px] text-slate-300 font-semibold mb-1">
+                        <span>Trục Dọc (Y):</span>
+                        <span className="text-cyan-300 font-bold">{offsetY < 0 ? `${offsetY}px (Lên)` : offsetY > 0 ? `+${offsetY}px (Xuống)` : '0px'}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-60"
+                        max="60"
+                        value={offsetY}
+                        onChange={e => setOffsetY(parseInt(e.target.value, 10))}
+                        className="w-full accent-cyan-400 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center pt-1">
+                    <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
                       <input
                         type="checkbox"
                         checked={flipX}
                         onChange={e => setFlipX(e.target.checked)}
-                        className="rounded accent-cyan-400"
+                        className="w-4 h-4 rounded accent-cyan-400"
                       />
-                      <span>Lật ngang</span>
+                      <span>Lật ngang hình ảnh (Flip)</span>
                     </label>
                   </div>
                 </div>
@@ -747,6 +847,38 @@ export const WardrobePage: React.FC = () => {
               </Button>
               <Button variant="cyan" fullWidth onClick={handleSaveCustomGear}>
                 Lưu Vào Tủ Đồ
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* In-App Deletion Confirmation Modal for Custom Gear */}
+      {itemToDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-sm bg-[#161B40] border border-rose-500/50 rounded-2xl p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-2 text-rose-400 font-bold font-heading">
+              <Trash2 className="w-5 h-5" />
+              <span>Xóa Món Đồ Phụ Kiện</span>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Bạn có chắc muốn xóa vĩnh viễn món đồ <strong className="text-white font-bold">"{itemToDelete.name}"</strong>? Ảnh GIF/PNG của món đồ sẽ được gỡ hoàn toàn khỏi tủ đồ.
+            </p>
+            <div className="flex gap-2 justify-end pt-1">
+              <Button size="sm" variant="secondary" onClick={() => setItemToDelete(null)}>
+                Hủy
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={async () => {
+                  const targetId = itemToDelete.id;
+                  setItemToDelete(null);
+                  await deleteGearBlob(targetId);
+                  dispatch({ type: 'REMOVE_CUSTOM_GEAR_META', payload: { id: targetId } });
+                }}
+              >
+                Xóa Vĩnh Viễn
               </Button>
             </div>
           </div>

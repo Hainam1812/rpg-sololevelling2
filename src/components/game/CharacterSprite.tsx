@@ -55,9 +55,17 @@ export const CharacterSprite: React.FC<CharacterSpriteProps> = ({
   // Equipped gear for this character
   const charGear = state.equippedGear[character.id] || {};
 
-  // Custom user uploaded gear
+  // Custom user uploaded gear: only render if it is equipped
+  const equippedCustomSet = new Set(
+    state.equippedCustomGearIds !== undefined
+      ? state.equippedCustomGearIds
+      : state.customGearMeta.map(m => m.id)
+  );
+
   const customItems = state.customGearMeta.filter(
-    item => !item.targetCharacterId || item.targetCharacterId === character.id
+    item =>
+      equippedCustomSet.has(item.id) &&
+      (!item.targetCharacterId || item.targetCharacterId === character.id)
   );
 
   const stageScale = (character as any).stage?.scale || 0.9;

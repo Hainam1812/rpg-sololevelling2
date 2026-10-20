@@ -149,6 +149,7 @@ export interface GameState {
   seenCosmetics: string[];
   seenGear: string[];
   customGearMeta: CustomGearItem[];
+  equippedCustomGearIds?: string[]; // IDs of custom gear items currently worn
   customCharacters?: CustomCharacterDef[];
   examHistory: ExamHistoryEntry[];
   personalExams: PersonalExamGoal[];

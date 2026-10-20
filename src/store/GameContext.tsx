@@ -95,7 +95,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let changed = false;
       if (state.customGearMeta?.length) {
         for (const item of state.customGearMeta) {
-          if (!item.imageBlobUrl) {
+          if (!item.imageBlobUrl || item.imageBlobUrl.startsWith('blob:')) {
             const blob = await getGearBlob(item.id);
             if (blob && isMounted) {
               item.imageBlobUrl = URL.createObjectURL(blob);
