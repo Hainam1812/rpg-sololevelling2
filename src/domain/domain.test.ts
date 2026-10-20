@@ -12,6 +12,7 @@ import { gradeExamSession, calculateExamHearts } from './exams.ts';
 import { GameState } from '../store/types.ts';
 import { QUEST_PACKAGES } from '../data/questPackages.ts';
 import { EXAMS } from '../data/exams/index.ts';
+import { gameReducer } from '../store/reducer.ts';
 
 function createMockState(partial: Partial<GameState> = {}): GameState {
   return {
@@ -251,4 +252,96 @@ test('Exam grading and hearts calculation', () => {
   assert.equal(result.historyEntry.grade, 'S');
   // Should award pass XP (50) and perfect XP (25)
   assert.equal(result.addedCompletions.length, 2);
+});
+
+test('Wardrobe: UNEQUIP_ALL_GEAR and UNEQUIP_EVERYTHING clear all gear and accessories', () => {
+  const initial = createMockState({
+    profile: {
+      nickname: 'Hero',
+      characterId: 'hero',
+      createdAt: '2026-10-01T00:00:00.000Z',
+      motionPreference: 'system',
+    },
+    equippedGear: {
+      hero: {
+        head: 'gear-headband-red',
+        body: 'gear-hoodie-pixel',
+      },
+    },
+    equippedCustomGearIds: ['custom-hat-1', 'custom-glasses-2'],
+    equippedCosmetics: {
+      backdrop: 'cos-bg-starry',
+      aura: 'cos-aura-fire',
+    },
+  });
+
+  // Test UNEQUIP_ALL_GEAR
+  const afterGearUnequip = gameReducer(initial, {
+    type: 'UNEQUIP_ALL_GEAR',
+    payload: { characterId: 'hero' },
+  }).state;
+  assert.deepEqual(afterGearUnequip.equippedGear.hero, undefined);
+  assert.deepEqual(afterGearUnequip.equippedCustomGearIds, []);
+  assert.equal(afterGearUnequip.equippedCosmetics.backdrop, 'cos-bg-starry');
+
+  // Test UNEQUIP_EVERYTHING
+  const afterEverythingUnequip = gameReducer(initial, {
+    type: 'UNEQUIP_EVERYTHING',
+    payload: { characterId: 'hero' },
+  }).state;
+  assert.deepEqual(afterEverythingUnequip.equippedGear, {});
+  assert.deepEqual(afterEverythingUnequip.equippedCustomGearIds, []);
+  assert.deepEqual(afterEverythingUnequip.equippedCosmetics, {});
+});
+
+test('Custom GIFs: CLEAR_ALL_CUSTOM_GIFS and REMOVE_CUSTOM_CHARACTER work properly', () => {
+  const initial = createMockState({
+    profile: {
+      nickname: 'CustomGuy',
+      characterId: 'custom-char-123',
+      createdAt: '2026-10-01T00:00:00.000Z',
+      motionPreference: 'system',
+    },
+    customCharacters: [
+      {
+        id: 'custom-char-123',
+        displayName: 'Custom Hero',
+        tagline: 'Pixel fan',
+        idleSrc: 'blob:http://localhost/abc',
+        pixelArt: true,
+        createdAt: '2026-10-01T00:00:00.000Z',
+      },
+    ],
+    customGearMeta: [
+      {
+        id: 'custom-gear-456',
+        name: 'Cool Hat',
+        slot: 'head',
+        imageBlobUrl: 'blob:http://localhost/def',
+        scale: 1,
+        offsetX: 0,
+        offsetY: 0,
+        flipX: false,
+        createdAt: '2026-10-01T00:00:00.000Z',
+      },
+    ],
+    equippedCustomGearIds: ['custom-gear-456'],
+  });
+
+  // Test removing the active custom character
+  const afterRemoveChar = gameReducer(initial, {
+    type: 'REMOVE_CUSTOM_CHARACTER',
+    payload: { id: 'custom-char-123' },
+  }).state;
+  assert.equal(afterRemoveChar.customCharacters?.length, 0);
+  assert.equal(afterRemoveChar.profile.characterId, 'hero');
+
+  // Test CLEAR_ALL_CUSTOM_GIFS
+  const afterClearAll = gameReducer(initial, {
+    type: 'CLEAR_ALL_CUSTOM_GIFS',
+  }).state;
+  assert.deepEqual(afterClearAll.customCharacters, []);
+  assert.deepEqual(afterClearAll.customGearMeta, []);
+  assert.deepEqual(afterClearAll.equippedCustomGearIds, []);
+  assert.equal(afterClearAll.profile.characterId, 'hero');
 });

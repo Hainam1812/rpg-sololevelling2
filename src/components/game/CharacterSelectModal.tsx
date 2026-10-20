@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useGame } from '../../store/GameContext.js';
 import charactersData from '../../data/characters.json' with { type: 'json' };
 import { Button } from '../ui/Button.js';
-import { Sparkles, Check, User, Upload, Plus, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Sparkles, Check, User, Upload, Plus, Trash2, Image as ImageIcon, X } from 'lucide-react';
 import { saveCharBlob, deleteCharBlob } from '../../store/indexedDb.js';
+import { saveStateToStorageImmediate } from '../../store/persistence.js';
 
 interface CharacterSelectModalProps {
   isOpen: boolean;
@@ -117,9 +118,21 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
       role="dialog"
       aria-modal="true"
     >
-      <div className="w-full max-w-xl bg-[#161B40] border border-violet-500/50 rounded-3xl shadow-2xl p-6 overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="relative w-full max-w-xl bg-[#161B40] border border-violet-500/50 rounded-3xl shadow-2xl p-6 overflow-hidden flex flex-col max-h-[92vh]">
+        {/* Close Button */}
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-5 right-5 z-20 p-2 text-slate-400 hover:text-white rounded-full bg-slate-800/60 hover:bg-slate-700 transition-colors cursor-pointer"
+            aria-label="Đóng cửa sổ"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
+
         {/* Header */}
-        <div className="text-center pb-4 border-b border-slate-700/60 shrink-0">
+        <div className="text-center pb-4 border-b border-slate-700/60 shrink-0 pr-8">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/30 text-violet-300 text-xs font-semibold mb-2">
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
             <span>2D Pixel RPG Sinh Viên</span>
@@ -157,18 +170,47 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
           </div>
 
           {/* Character selection header */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-300">
               Chọn nhân vật đại diện (2D Pixel GIF):
             </label>
-            <button
-              type="button"
-              onClick={() => setIsUploading(!isUploading)}
-              className="text-xs text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1 cursor-pointer transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>{isUploading ? 'Đóng tải lên' : 'Tải lên GIF riêng'}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {customCharacters.length > 0 && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (confirm('Bạn có chắc muốn xóa tất cả các nhân vật GIF đã tự tải lên khỏi thiết bị?')) {
+                      for (const c of customCharacters) {
+                        await deleteCharBlob(c.id);
+                      }
+                      dispatch({ type: 'CLEAR_ALL_CUSTOM_GIFS' });
+                      setSelectedId('hero');
+                      saveStateToStorageImmediate({
+                        ...state,
+                        customCharacters: [],
+                        profile: {
+                          ...state.profile,
+                          characterId: 'hero',
+                        },
+                      });
+                    }
+                  }}
+                  className="text-xs text-rose-400 hover:text-rose-300 font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                  title="Xóa toàn bộ các ảnh GIF nhân vật tự tải"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Xóa hết GIF đã tải ({customCharacters.length})</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setIsUploading(!isUploading)}
+                className="text-xs text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{isUploading ? 'Đóng tải lên' : 'Tải lên GIF riêng'}</span>
+              </button>
+            </div>
           </div>
 
           {/* Custom Upload Section */}
@@ -250,7 +292,11 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
                       : 'bg-[#0F132E] border-slate-700/60 hover:border-slate-500 hover:bg-[#121738]'
                   }`}
                 >
-                  <div className="w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center relative my-1">
+                  <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-slate-800/80 border border-slate-700 text-slate-300 text-[10px] font-semibold">
+                    Mặc định
+                  </div>
+
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center relative my-1 mt-4">
                     <img
                       src={imgSrc}
                       alt={char.displayName}
@@ -289,7 +335,20 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
                       : 'bg-[#0F132E] border-slate-700/60 hover:border-slate-500 hover:bg-[#121738]'
                   }`}
                 >
-                  <div className="w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center relative my-1">
+                  <button
+                    type="button"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setCharToDelete({ id: char.id, displayName: char.displayName });
+                    }}
+                    className="absolute top-2 left-2 z-20 px-2.5 py-1 rounded-lg bg-rose-950/90 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/60 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-md"
+                    title="Xóa nhân vật GIF này vĩnh viễn"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Xóa GIF</span>
+                  </button>
+
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center relative my-1 mt-4">
                     {char.idleSrc ? (
                       <img
                         src={char.idleSrc}
@@ -314,18 +373,6 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
                       <Check className="w-3.5 h-3.5 stroke-[3]" />
                     </div>
                   )}
-
-                  <button
-                    type="button"
-                    onClick={e => {
-                      e.stopPropagation();
-                      setCharToDelete({ id: char.id, displayName: char.displayName });
-                    }}
-                    className="absolute top-2 left-2 p-1 text-slate-500 hover:text-rose-400 rounded transition-colors cursor-pointer"
-                    title="Xóa nhân vật"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
                 </div>
               );
             })}
@@ -333,7 +380,12 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="pt-4 border-t border-slate-700/60 shrink-0">
+        <div className="pt-4 border-t border-slate-700/60 shrink-0 flex gap-3">
+          {onClose && (
+            <Button variant="secondary" size="lg" className="w-1/3" onClick={onClose}>
+              Hủy bỏ
+            </Button>
+          )}
           <Button variant="primary" fullWidth size="lg" onClick={handleConfirm}>
             Xác Nhận & Bắt Đầu
           </Button>
@@ -363,6 +415,14 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
                   setCharToDelete(null);
                   await deleteCharBlob(targetId);
                   dispatch({ type: 'REMOVE_CUSTOM_CHARACTER', payload: { id: targetId } });
+                  saveStateToStorageImmediate({
+                    ...state,
+                    customCharacters: (state.customCharacters || []).filter(c => c.id !== targetId),
+                    profile: {
+                      ...state.profile,
+                      characterId: state.profile.characterId === targetId ? 'hero' : state.profile.characterId,
+                    },
+                  });
                   if (selectedId === targetId) {
                     setSelectedId('hero');
                   }
