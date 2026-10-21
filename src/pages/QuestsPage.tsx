@@ -60,6 +60,7 @@ export const QuestsPage: React.FC = () => {
       status: 'todo' | 'in_progress' | 'completed' | 'locked' | 'overdue';
       startedAt?: string;
       dueAt?: string;
+      activeTaskState?: any;
       packageId?: string;
       isBoss?: boolean;
       lockReason?: string;
@@ -79,6 +80,7 @@ export const QuestsPage: React.FC = () => {
         status: item.isCompleted ? 'completed' : item.activeState ? 'in_progress' : 'todo',
         startedAt: item.activeState?.startedAt,
         dueAt: item.activeState?.dueAt,
+        activeTaskState: item.activeState,
         source: 'daily',
       }));
     } else if (currentTab === 'active') {
@@ -97,6 +99,7 @@ export const QuestsPage: React.FC = () => {
           status: 'in_progress' as const,
           startedAt: item.activeState?.startedAt,
           dueAt: item.activeState?.dueAt,
+          activeTaskState: item.activeState,
           source: 'daily' as const,
         }));
 
@@ -119,6 +122,7 @@ export const QuestsPage: React.FC = () => {
                 status: 'in_progress' as const,
                 startedAt: activeState.startedAt,
                 dueAt: activeState.dueAt,
+                activeTaskState: activeState,
                 packageId: p.pkg.id,
                 isBoss: task.isBoss,
                 source: 'package' as const,
@@ -156,6 +160,7 @@ export const QuestsPage: React.FC = () => {
             status,
             startedAt: activeState?.startedAt,
             dueAt: activeState?.dueAt,
+            activeTaskState: activeState,
             packageId: p.pkg.id,
             isBoss: task.isBoss,
             lockReason: check.reason,
@@ -329,12 +334,28 @@ export const QuestsPage: React.FC = () => {
               status={q.status}
               startedAt={q.startedAt}
               dueAt={q.dueAt}
+              activeTaskState={q.activeTaskState}
               isBoss={q.isBoss}
               lockReason={q.lockReason}
               onClickDetail={() => setSelectedQuest(q)}
               onStart={
                 q.status === 'todo'
                   ? () => dispatch({ type: 'START_TASK', payload: { questId: q.id } })
+                  : undefined
+              }
+              onPause={
+                q.status === 'in_progress' && !q.activeTaskState?.isPaused
+                  ? () => dispatch({ type: 'PAUSE_TASK', payload: { questId: q.id } })
+                  : undefined
+              }
+              onResume={
+                q.status === 'in_progress' && q.activeTaskState?.isPaused
+                  ? () => dispatch({ type: 'RESUME_TASK', payload: { questId: q.id } })
+                  : undefined
+              }
+              onResetTimer={
+                q.status === 'in_progress'
+                  ? () => dispatch({ type: 'RESET_TASK_TIMER', payload: { questId: q.id } })
                   : undefined
               }
               onComplete={
@@ -422,10 +443,27 @@ export const QuestsPage: React.FC = () => {
       <QuestDetailModal
         isOpen={Boolean(selectedQuest)}
         onClose={() => setSelectedQuest(null)}
-        quest={selectedQuest}
+        quest={
+          selectedQuest
+            ? {
+                ...selectedQuest,
+                activeTaskState: state.activeTasks[selectedQuest.id],
+              }
+            : null
+        }
         onStart={() => {
           if (selectedQuest) {
             dispatch({ type: 'START_TASK', payload: { questId: selectedQuest.id } });
+          }
+        }}
+        onPause={() => {
+          if (selectedQuest) {
+            dispatch({ type: 'PAUSE_TASK', payload: { questId: selectedQuest.id } });
+          }
+        }}
+        onResume={() => {
+          if (selectedQuest) {
+            dispatch({ type: 'RESUME_TASK', payload: { questId: selectedQuest.id } });
           }
         }}
         onComplete={() => {

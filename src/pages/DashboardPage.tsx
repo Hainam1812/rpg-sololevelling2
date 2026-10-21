@@ -227,6 +227,8 @@ export const DashboardPage: React.FC = () => {
                   xp={item.quest.xp}
                   status={status}
                   startedAt={item.activeState?.startedAt}
+                  dueAt={item.activeState?.dueAt}
+                  activeTaskState={item.activeState}
                   onClickDetail={() =>
                     setSelectedQuest({
                       id: item.quest.id,
@@ -238,6 +240,7 @@ export const DashboardPage: React.FC = () => {
                       xp: item.quest.xp,
                       locationId: item.quest.locationId,
                       status,
+                      activeTaskState: item.activeState,
                     })
                   }
                   onStart={() =>
@@ -245,6 +248,33 @@ export const DashboardPage: React.FC = () => {
                       type: 'START_TASK',
                       payload: { questId: item.quest.id },
                     })
+                  }
+                  onPause={
+                    status === 'in_progress' && !item.activeState?.isPaused
+                      ? () =>
+                          dispatch({
+                            type: 'PAUSE_TASK',
+                            payload: { questId: item.quest.id },
+                          })
+                      : undefined
+                  }
+                  onResume={
+                    status === 'in_progress' && item.activeState?.isPaused
+                      ? () =>
+                          dispatch({
+                            type: 'RESUME_TASK',
+                            payload: { questId: item.quest.id },
+                          })
+                      : undefined
+                  }
+                  onResetTimer={
+                    status === 'in_progress'
+                      ? () =>
+                          dispatch({
+                            type: 'RESET_TASK_TIMER',
+                            payload: { questId: item.quest.id },
+                          })
+                      : undefined
                   }
                   onComplete={() =>
                     dispatch({
@@ -380,10 +410,27 @@ export const DashboardPage: React.FC = () => {
       <QuestDetailModal
         isOpen={Boolean(selectedQuest)}
         onClose={() => setSelectedQuest(null)}
-        quest={selectedQuest}
+        quest={
+          selectedQuest
+            ? {
+                ...selectedQuest,
+                activeTaskState: state.activeTasks[selectedQuest.id],
+              }
+            : null
+        }
         onStart={() => {
           if (selectedQuest) {
             dispatch({ type: 'START_TASK', payload: { questId: selectedQuest.id } });
+          }
+        }}
+        onPause={() => {
+          if (selectedQuest) {
+            dispatch({ type: 'PAUSE_TASK', payload: { questId: selectedQuest.id } });
+          }
+        }}
+        onResume={() => {
+          if (selectedQuest) {
+            dispatch({ type: 'RESUME_TASK', payload: { questId: selectedQuest.id } });
           }
         }}
         onComplete={() => {

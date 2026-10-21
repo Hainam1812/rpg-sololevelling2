@@ -19,6 +19,8 @@ import {
   Check,
   Sparkles,
 } from 'lucide-react';
+import { validateCharacterName, sanitizeCharacterInput } from '../domain/character.js';
+import { ResetDataModal } from '../components/ui/ResetDataModal.js';
 
 export const ProfilePage: React.FC = () => {
   const { state, dispatch, now, advanceDateByDays } = useGame();
@@ -28,8 +30,10 @@ export const ProfilePage: React.FC = () => {
 
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isCharModalOpen, setIsCharModalOpen] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [editingNick, setEditingNick] = useState(state.profile.nickname || '');
   const [nickSuccess, setNickSuccess] = useState(false);
+  const [nickError, setNickError] = useState<string | null>(null);
 
   // Compute 7-day completion activity bar chart
   const last7Days = [];
@@ -50,22 +54,21 @@ export const ProfilePage: React.FC = () => {
 
   const handleSaveNickname = (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = editingNick.trim();
-    if (clean && clean.length >= 2 && clean.length <= 20) {
-      dispatch({ type: 'SET_PROFILE', payload: { nickname: clean } });
-      setNickSuccess(true);
-      setTimeout(() => setNickSuccess(false), 2000);
+    const val = validateCharacterName(editingNick);
+    if (!val.isValid) {
+      setNickError(val.error || 'Tên nhân vật không hợp lệ.');
+      return;
     }
+
+    setNickError(null);
+    dispatch({ type: 'SET_PROFILE', payload: { nickname: val.cleanName } });
+    setEditingNick(val.cleanName);
+    setNickSuccess(true);
+    setTimeout(() => setNickSuccess(false), 2000);
   };
 
-  const handleResetData = () => {
-    if (
-      confirm(
-        'CẢNH BÁO: Thao tác này sẽ đặt lại toàn bộ tiến trình, XP, lịch sử làm bài và đơn hàng của bạn về mặc định ban đầu. Bạn có chắc chắn muốn reset?'
-      )
-    ) {
-      dispatch({ type: 'RESET_DATA' });
-    }
+  const handleOpenResetModal = () => {
+    setIsResetModalOpen(true);
   };
 
   return (
@@ -183,23 +186,61 @@ export const ProfilePage: React.FC = () => {
 
         {/* Change Nickname form */}
         <form onSubmit={handleSaveNickname} className="space-y-2">
-          <label className="text-xs font-bold text-slate-300">Đổi biệt danh (2 - 20 ký tự):</label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-300">
+              Đổi tên nhân vật / biệt danh (2 - 20 ký tự):
+            </label>
+            <span className="text-[10px] text-slate-400 font-pixel">
+              {editingNick.trim().length}/20
+            </span>
+          </div>
+
           <div className="flex gap-2">
             <input
               type="text"
               value={editingNick}
-              onChange={e => setEditingNick(e.target.value)}
+              onChange={e => {
+                const clean = sanitizeCharacterInput(e.target.value);
+                setEditingNick(clean);
+                if (nickError) setNickError(null);
+              }}
+              onBlur={() => {
+                setEditingNick(prev => prev.trim());
+              }}
               maxLength={20}
-              className="flex-1 px-3.5 py-2 rounded-xl bg-[#0F132E] border border-slate-700 text-xs text-slate-100 focus:outline-none focus:border-violet-500"
+              placeholder="Nhập tên nhân vật mới..."
+              className={`flex-1 px-3.5 py-2 rounded-xl bg-[#0F132E] border text-xs text-slate-100 focus:outline-none transition-colors ${
+                nickError
+                  ? 'border-rose-500 focus:border-rose-400'
+                  : 'border-slate-700 focus:border-violet-500'
+              }`}
             />
-            <Button variant="primary" size="sm" type="submit">
+            <Button
+              variant="primary"
+              size="sm"
+              type="submit"
+              disabled={!editingNick.trim()}
+            >
               Lưu
             </Button>
           </div>
+
+          {nickError && (
+            <p className="text-xs text-rose-400 font-medium">
+              ⚠️ {nickError}
+            </p>
+          )}
+
           {nickSuccess && (
-            <p className="text-xs text-emerald-400 flex items-center gap-1">
+            <p className="text-xs text-emerald-400 flex items-center gap-1 font-medium">
               <Check className="w-3.5 h-3.5" />
-              <span>Đã cập nhật biệt danh mới!</span>
+              <span>Đã cập nhật tên nhân vật mới: "{editingNick.trim()}"!</span>
+            </p>
+          )}
+
+          {!nickError && !nickSuccess && (
+            <p className="text-[11px] text-slate-400">
+              * Tên không được để trống, khoảng trắng dư ở đầu & cuối sẽ tự động bị bỏ.
             </p>
           )}
         </form>
@@ -248,12 +289,16 @@ export const ProfilePage: React.FC = () => {
         )}
 
         {/* Danger zone: Reset Data */}
-        <div className="pt-2 border-t border-slate-700/60 flex items-center justify-between">
+        <div className="pt-3 border-t border-rose-900/40 flex items-center justify-between gap-4 bg-rose-950/20 p-3.5 rounded-2xl border">
           <div>
-            <div className="text-xs font-bold text-rose-400">Đặt lại toàn bộ dữ liệu</div>
-            <div className="text-[11px] text-slate-500">Xóa dữ liệu cục bộ và chơi lại từ đầu</div>
+            <div className="text-xs font-bold text-rose-400 flex items-center gap-1.5">
+              <span>Đặt lại toàn bộ dữ liệu (Reset Data)</span>
+            </div>
+            <div className="text-[11px] text-slate-400 mt-0.5">
+              Xóa sạch tiến trình, level, streak, bộ đếm giờ và chơi lại từ đầu
+            </div>
           </div>
-          <Button variant="danger" size="sm" onClick={handleResetData}>
+          <Button variant="danger" size="sm" onClick={handleOpenResetModal}>
             Reset Data
           </Button>
         </div>
@@ -296,6 +341,13 @@ export const ProfilePage: React.FC = () => {
       {/* Modals */}
       <ShareModal isOpen={isShareOpen} onClose={() => setIsShareOpen(false)} />
       <CharacterSelectModal isOpen={isCharModalOpen} onClose={() => setIsCharModalOpen(false)} />
+      <ResetDataModal
+        isOpen={isResetModalOpen}
+        onClose={() => setIsResetModalOpen(false)}
+        onSuccess={() => {
+          setIsCharModalOpen(true);
+        }}
+      />
     </div>
   );
 };

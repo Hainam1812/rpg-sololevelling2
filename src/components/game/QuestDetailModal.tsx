@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal.js';
 import { DifficultyBadge, StatusBadge } from '../ui/Badge.js';
 import { Button } from '../ui/Button.js';
 import { DifficultyLevel } from '../../config/progression.js';
-import { Check, Play, MapPin, AlertCircle, Sparkles } from 'lucide-react';
+import { ActiveTaskState } from '../../store/types.js';
+import { Check, Play, Pause, MapPin, AlertCircle, Sparkles, Clock } from 'lucide-react';
 import { getLocationById } from '../../data/locations.js';
 
 interface QuestDetailModalProps {
@@ -21,8 +22,11 @@ interface QuestDetailModalProps {
     status: 'todo' | 'in_progress' | 'completed' | 'locked' | 'overdue';
     isBoss?: boolean;
     lockReason?: string;
+    activeTaskState?: ActiveTaskState;
   } | null;
   onStart?: () => void;
+  onPause?: () => void;
+  onResume?: () => void;
   onComplete?: () => void;
 }
 
@@ -31,13 +35,51 @@ export const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
   onClose,
   quest,
   onStart,
+  onPause,
+  onResume,
   onComplete,
 }) => {
-  if (!quest) return null;
+  const isPaused = quest?.activeTaskState?.isPaused ?? false;
+  const baseElapsed = quest?.activeTaskState?.elapsedSeconds ?? 0;
+  const lastResumed = quest?.activeTaskState?.lastResumedAt || quest?.activeTaskState?.startedAt;
+  const questStatus = quest?.status;
+
+  const [elapsedSec, setElapsedSec] = useState<number>(0);
+
+  useEffect(() => {
+    if (!isOpen || !quest || questStatus !== 'in_progress') {
+      setElapsedSec(0);
+      return;
+    }
+    if (isPaused) {
+      setElapsedSec(baseElapsed);
+      return;
+    }
+    const calc = () => {
+      if (!lastResumed) return baseElapsed;
+      const delta = Math.max(0, Math.floor((Date.now() - new Date(lastResumed).getTime()) / 1000));
+      return baseElapsed + delta;
+    };
+    setElapsedSec(calc());
+    const interval = setInterval(() => setElapsedSec(calc()), 1000);
+    return () => clearInterval(interval);
+  }, [isOpen, quest, questStatus, isPaused, baseElapsed, lastResumed]);
+
+  if (!isOpen || !quest) return null;
 
   const loc = quest.locationId ? getLocationById(quest.locationId) : undefined;
   const isCompleted = quest.status === 'completed';
   const isLocked = quest.status === 'locked';
+
+  const formatTimer = (totalSec: number) => {
+    const hours = Math.floor(totalSec / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    if (hours > 0) {
+      return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={quest.name} maxWidth="md">
@@ -90,6 +132,38 @@ export const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
           </div>
         )}
 
+        {/* In-progress timer status */}
+        {quest.status === 'in_progress' && (
+          <div className={`p-3.5 rounded-xl border flex items-center justify-between flex-wrap gap-2 ${
+            isPaused
+              ? 'bg-amber-950/40 border-amber-500/50 text-amber-200'
+              : 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200'
+          }`}>
+            <div className="flex items-center gap-2">
+              {isPaused ? (
+                <Pause className="w-4 h-4 text-amber-400" />
+              ) : (
+                <Clock className="w-4 h-4 text-emerald-400 animate-spin" />
+              )}
+              <span className="text-xs font-semibold">
+                {isPaused ? 'Nhiệm vụ đang tạm dừng:' : 'Nhiệm vụ đang đếm giờ:'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-sm font-bold text-white px-2 py-0.5 rounded bg-black/40">
+                {formatTimer(elapsedSec)}
+              </span>
+              <span className={`text-[10px] font-pixel px-2 py-0.5 rounded border uppercase ${
+                isPaused
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                  : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 animate-pulse'
+              }`}>
+                {isPaused ? 'Tạm dừng' : 'Đang làm'}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Lock warning */}
         {isLocked && quest.lockReason && (
           <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-950/40 border border-rose-800/80 text-xs text-rose-300">
@@ -99,7 +173,7 @@ export const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
         )}
 
         {/* Footer Actions */}
-        <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-slate-700/60">
+        <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-slate-700/60 flex-wrap">
           <Button variant="secondary" onClick={onClose}>
             Đóng
           </Button>
@@ -107,7 +181,7 @@ export const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
           {quest.status === 'todo' && onStart && (
             <Button
               variant="secondary"
-              icon={<Play className="w-4 h-4" />}
+              icon={<Play className="w-4 h-4 text-emerald-400" />}
               onClick={() => {
                 onStart();
                 onClose();
@@ -115,6 +189,32 @@ export const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
             >
               Bắt đầu ngay
             </Button>
+          )}
+
+          {quest.status === 'in_progress' && (
+            <>
+              {isPaused ? (
+                onResume && (
+                  <Button
+                    variant="cyan"
+                    icon={<Play className="w-4 h-4" />}
+                    onClick={onResume}
+                  >
+                    Tiếp tục làm
+                  </Button>
+                )
+              ) : (
+                onPause && (
+                  <Button
+                    variant="secondary"
+                    icon={<Pause className="w-4 h-4 text-amber-400" />}
+                    onClick={onPause}
+                  >
+                    Tạm dừng
+                  </Button>
+                )
+              )}
+            </>
           )}
 
           {(quest.status === 'todo' || quest.status === 'in_progress') && onComplete && (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useGame } from '../store/GameContext.js';
 import { selectCartCalculations } from '../store/selectors.js';
@@ -17,27 +17,42 @@ import {
   Lock,
 } from 'lucide-react';
 
+import { validateCharacterName, sanitizeCharacterInput } from '../domain/character.js';
+
 export const CheckoutPage: React.FC = () => {
   const { state, dispatch, now } = useGame();
   const navigate = useNavigate();
   const cartCalc = selectCartCalculations(state);
 
-  const [characterName, setCharacterName] = useState(state.profile.nickname || 'Adventurer');
+  const [characterName, setCharacterName] = useState(state.profile.nickname || '');
+  const [nameError, setNameError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'wallet' | 'bank'>('card');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // If cart is empty, redirect
+  // If cart is empty, redirect safely inside useEffect
+  useEffect(() => {
+    if (cartCalc.items.length === 0) {
+      navigate('/cart', { replace: true });
+    }
+  }, [cartCalc.items.length, navigate]);
+
   if (cartCalc.items.length === 0) {
-    navigate('/cart');
     return null;
   }
 
   const handleConfirmOrder = () => {
     if (isProcessing) return;
+    const val = validateCharacterName(characterName);
+    if (!val.isValid) {
+      setNameError(val.error || 'Tên thợ săn không được để trống.');
+      return;
+    }
+
+    setNameError(null);
     setIsProcessing(true);
 
     setTimeout(() => {
-      const result = processCheckout(state, paymentMethod, characterName, now);
+      const result = processCheckout(state, paymentMethod, val.cleanName, now);
 
       dispatch({
         type: 'CONFIRM_CHECKOUT',
@@ -72,17 +87,37 @@ export const CheckoutPage: React.FC = () => {
         <div className="md:col-span-2 space-y-4">
           {/* Character Name Input */}
           <Card variant="surface" className="p-5 space-y-3">
-            <h3 className="font-bold font-heading text-base text-slate-100">
-              1. Tên Thợ Săn Nhận Gói
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold font-heading text-base text-slate-100">
+                1. Tên Thợ Săn Nhận Gói (Bắt buộc)
+              </h3>
+              <span className="text-[10px] text-slate-400 font-pixel">
+                {characterName.trim().length}/20
+              </span>
+            </div>
             <input
               type="text"
               value={characterName}
-              onChange={e => setCharacterName(e.target.value)}
-              placeholder="Nhập tên người chơi..."
+              onChange={e => {
+                setCharacterName(sanitizeCharacterInput(e.target.value));
+                if (nameError) setNameError(null);
+              }}
+              onBlur={() => setCharacterName(prev => prev.trim())}
+              placeholder="Nhập tên thợ săn (2 - 20 ký tự)..."
               maxLength={20}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[#0F132E] border border-slate-700 text-xs sm:text-sm text-slate-100 focus:outline-none focus:border-violet-500"
+              className={`w-full px-3.5 py-2.5 rounded-xl bg-[#0F132E] border text-xs sm:text-sm text-slate-100 focus:outline-none transition-colors ${
+                nameError
+                  ? 'border-rose-500 focus:border-rose-400'
+                  : 'border-slate-700 focus:border-violet-500'
+              }`}
             />
+            {nameError ? (
+              <p className="text-xs text-rose-400 font-medium">⚠️ {nameError}</p>
+            ) : (
+              <p className="text-[11px] text-slate-400">
+                * Tên không được để trống, khoảng trắng dư ở đầu & cuối sẽ tự động bị bỏ.
+              </p>
+            )}
           </Card>
 
           {/* Simulated Payment Methods */}

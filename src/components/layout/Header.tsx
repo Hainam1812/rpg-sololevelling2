@@ -4,8 +4,10 @@ import { useGame } from '../../store/GameContext.js';
 import { selectLevelProgress, selectStreak } from '../../store/selectors.js';
 import { Logo } from '../ui/Logo.js';
 import { CharacterStage } from '../game/CharacterStage.js';
-import { ShoppingBag, Flame, Share2, Award, Shirt, User, Settings, Menu, X } from 'lucide-react';
+import { ShoppingBag, Flame, Share2, Award, Shirt, User, Settings, Menu, X, RotateCcw } from 'lucide-react';
 import { ShareModal } from '../share/ShareModal.js';
+import { ResetDataModal } from '../ui/ResetDataModal.js';
+import { CharacterSelectModal } from '../game/CharacterSelectModal.js';
 
 export const Header: React.FC = () => {
   const { state, now } = useGame();
@@ -15,6 +17,8 @@ export const Header: React.FC = () => {
 
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isCharModalOpen, setIsCharModalOpen] = useState(false);
 
   const cartCount = state.cart.length;
 
@@ -142,6 +146,17 @@ export const Header: React.FC = () => {
                   >
                     <span>Về dự án</span>
                   </Link>
+
+                  <div className="pt-1 border-t border-slate-700/60 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsResetModalOpen(true)}
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-400 hover:text-rose-200 hover:bg-rose-950/40 rounded-xl transition-colors w-full text-left cursor-pointer"
+                    >
+                      <RotateCcw className="w-4 h-4 text-rose-400" />
+                      <span>Đặt lại dữ liệu</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -149,8 +164,19 @@ export const Header: React.FC = () => {
         </div>
       </header>
 
-      {/* Share Modal */}
+      {/* Modals */}
       <ShareModal isOpen={isShareOpen} onClose={() => setIsShareOpen(false)} />
+      <ResetDataModal
+        isOpen={isResetModalOpen}
+        onClose={() => setIsResetModalOpen(false)}
+        onSuccess={() => setIsCharModalOpen(true)}
+      />
+      <CharacterSelectModal
+        isOpen={isCharModalOpen}
+        onClose={() => setIsCharModalOpen(false)}
+        title="Bắt Đầu Hành Trình Mới"
+        subtitle="Dữ liệu đã được làm mới thành công! Hãy chọn nhân vật và nhập biệt danh mới để bắt đầu."
+      />
     </>
   );
 };

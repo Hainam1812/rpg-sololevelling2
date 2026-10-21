@@ -10,6 +10,9 @@ import { getDefaultState } from './persistence.js';
 export type Action =
   | { type: 'SET_PROFILE'; payload: { nickname?: string; characterId?: string; motionPreference?: 'system' | 'reduced' | 'full' } }
   | { type: 'START_TASK'; payload: { questId: string; dueAfterDays?: number } }
+  | { type: 'PAUSE_TASK'; payload: { questId: string } }
+  | { type: 'RESUME_TASK'; payload: { questId: string } }
+  | { type: 'RESET_TASK_TIMER'; payload: { questId: string } }
   | { type: 'COMPLETE_DAILY_QUEST'; payload: { questId: string; now?: Date } }
   | { type: 'COMPLETE_PACKAGE_TASK'; payload: { packageId: string; taskId: string; now?: Date } }
   | { type: 'ABANDON_PACKAGE'; payload: { packageId: string } }
@@ -86,7 +89,83 @@ export function gameReducer(
         ...state,
         activeTasks: {
           ...state.activeTasks,
-          [questId]: { startedAt, dueAt },
+          [questId]: {
+            startedAt,
+            dueAt,
+            elapsedSeconds: 0,
+            isPaused: false,
+            lastResumedAt: startedAt,
+          },
+        },
+      };
+      break;
+    }
+
+    case 'PAUSE_TASK': {
+      const { questId } = action.payload;
+      const current = state.activeTasks[questId];
+      if (!current || current.isPaused) {
+        break;
+      }
+      const resumeAnchor = current.lastResumedAt || current.startedAt;
+      const anchorMs = new Date(resumeAnchor).getTime();
+      const nowMs = now.getTime();
+      const deltaSec = Math.max(0, Math.floor((nowMs - anchorMs) / 1000));
+      const accumulated = (current.elapsedSeconds ?? 0) + deltaSec;
+
+      nextState = {
+        ...state,
+        activeTasks: {
+          ...state.activeTasks,
+          [questId]: {
+            ...current,
+            elapsedSeconds: accumulated,
+            isPaused: true,
+            lastResumedAt: undefined,
+          },
+        },
+      };
+      break;
+    }
+
+    case 'RESUME_TASK': {
+      const { questId } = action.payload;
+      const current = state.activeTasks[questId];
+      if (!current || !current.isPaused) {
+        break;
+      }
+
+      nextState = {
+        ...state,
+        activeTasks: {
+          ...state.activeTasks,
+          [questId]: {
+            ...current,
+            isPaused: false,
+            lastResumedAt: now.toISOString(),
+          },
+        },
+      };
+      break;
+    }
+
+    case 'RESET_TASK_TIMER': {
+      const { questId } = action.payload;
+      const current = state.activeTasks[questId];
+      if (!current) {
+        break;
+      }
+      const nowIso = now.toISOString();
+      nextState = {
+        ...state,
+        activeTasks: {
+          ...state.activeTasks,
+          [questId]: {
+            ...current,
+            elapsedSeconds: 0,
+            isPaused: false,
+            lastResumedAt: nowIso,
+          },
         },
       };
       break;

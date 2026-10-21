@@ -1,4 +1,4 @@
-import { GameState } from './types.js';
+import { GameState, ActiveTaskState } from './types.js';
 import { calculateLevelFromXp, getLevelProgress, LevelProgress } from '../domain/progression.js';
 import { calculateStreak, StreakResult } from '../domain/streak.js';
 import { getDateKey } from '../domain/dates.js';
@@ -30,7 +30,7 @@ export function selectStreak(state: GameState, now: Date = new Date()): StreakRe
 export interface DailyQuestStatusItem {
   quest: DailyQuestDef;
   isCompleted: boolean;
-  activeState?: { startedAt: string; dueAt?: string };
+  activeState?: ActiveTaskState;
 }
 
 export function selectDailyQuestsStatus(state: GameState, now: Date = new Date()): {

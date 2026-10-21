@@ -9,6 +9,7 @@ import { completePackageTask, canAttemptTask, isTaskCompleted } from './packages
 import { calculateCart, calculateComboPrice } from './cart.ts';
 import { evaluateAchievements } from './achievements.ts';
 import { gradeExamSession, calculateExamHearts } from './exams.ts';
+import { validateCharacterName, sanitizeCharacterInput } from './character.ts';
 import { GameState } from '../store/types.ts';
 import { QUEST_PACKAGES } from '../data/questPackages.ts';
 import { EXAMS } from '../data/exams/index.ts';
@@ -345,3 +346,99 @@ test('Custom GIFs: CLEAR_ALL_CUSTOM_GIFS and REMOVE_CUSTOM_CHARACTER work proper
   assert.deepEqual(afterClearAll.equippedCustomGearIds, []);
   assert.equal(afterClearAll.profile.characterId, 'hero');
 });
+
+test('Character naming constraints: not empty, strips leading and trailing spaces, enforces 2-20 length', () => {
+  // Empty or whitespace-only is rejected
+  const emptyRes = validateCharacterName('');
+  assert.equal(emptyRes.isValid, false);
+  assert.ok(emptyRes.error?.includes('không được để trống'));
+
+  const spacesRes = validateCharacterName('     ');
+  assert.equal(spacesRes.isValid, false);
+  assert.ok(spacesRes.error?.includes('không được để trống'));
+
+  // Leading and trailing spaces are stripped
+  const trimmedRes = validateCharacterName('   Jin-Woo   ');
+  assert.equal(trimmedRes.isValid, true);
+  assert.equal(trimmedRes.cleanName, 'Jin-Woo');
+
+  // Input sanitization strips leading space immediately
+  assert.equal(sanitizeCharacterInput('   Nam'), 'Nam');
+  assert.equal(sanitizeCharacterInput('Minh  '), 'Minh  ');
+
+  // Length constraints (2 to 20)
+  assert.equal(validateCharacterName('A').isValid, false);
+  assert.equal(validateCharacterName('Ab').isValid, true);
+  assert.equal(validateCharacterName('a'.repeat(20)).isValid, true);
+  assert.equal(validateCharacterName('a'.repeat(21)).isValid, false);
+});
+
+test('Task timers: start from 0, independent timers, pause and resume, reset timer, and RESET_DATA', () => {
+  const initial = createMockState();
+  const startTime = new Date(2026, 9, 20, 10, 0, 0);
+
+  // 1. START_TASK: starts timer from 0 with isPaused = false
+  const state1 = gameReducer(initial, {
+    type: 'START_TASK',
+    payload: { questId: 'quest-morning' },
+  }, startTime).state;
+
+  const task1 = state1.activeTasks['quest-morning'];
+  assert.ok(task1);
+  assert.equal(task1.elapsedSeconds, 0);
+  assert.equal(task1.isPaused, false);
+  assert.equal(task1.startedAt, startTime.toISOString());
+
+  // 2. Start a second independent task
+  const state2 = gameReducer(state1, {
+    type: 'START_TASK',
+    payload: { questId: 'quest-gym' },
+  }, startTime).state;
+
+  assert.ok(state2.activeTasks['quest-gym']);
+  assert.equal(state2.activeTasks['quest-gym'].elapsedSeconds, 0);
+
+  // 3. PAUSE_TASK: after 120 seconds, pause quest-morning
+  const pauseTime = new Date(2026, 9, 20, 10, 2, 0); // 120s later
+  const state3 = gameReducer(state2, {
+    type: 'PAUSE_TASK',
+    payload: { questId: 'quest-morning' },
+  }, pauseTime).state;
+
+  // quest-morning is paused with 120 seconds elapsed
+  assert.equal(state3.activeTasks['quest-morning'].isPaused, true);
+  assert.equal(state3.activeTasks['quest-morning'].elapsedSeconds, 120);
+
+  // quest-gym is NOT paused (independent timer!)
+  assert.equal(state3.activeTasks['quest-gym'].isPaused, false);
+
+  // 4. RESUME_TASK: resume quest-morning
+  const resumeTime = new Date(2026, 9, 20, 10, 5, 0);
+  const state4 = gameReducer(state3, {
+    type: 'RESUME_TASK',
+    payload: { questId: 'quest-morning' },
+  }, resumeTime).state;
+
+  assert.equal(state4.activeTasks['quest-morning'].isPaused, false);
+  assert.equal(state4.activeTasks['quest-morning'].elapsedSeconds, 120);
+  assert.equal(state4.activeTasks['quest-morning'].lastResumedAt, resumeTime.toISOString());
+
+  // 5. RESET_TASK_TIMER: restart quest-morning timer to 0
+  const state5 = gameReducer(state4, {
+    type: 'RESET_TASK_TIMER',
+    payload: { questId: 'quest-morning' },
+  }, resumeTime).state;
+
+  assert.equal(state5.activeTasks['quest-morning'].elapsedSeconds, 0);
+  assert.equal(state5.activeTasks['quest-morning'].isPaused, false);
+
+  // 6. RESET_DATA: resets all game data back to default
+  const stateReset = gameReducer(state5, {
+    type: 'RESET_DATA',
+  }).state;
+
+  assert.deepEqual(stateReset.activeTasks, {});
+  assert.deepEqual(stateReset.completions, []);
+  assert.equal(stateReset.profile.nickname, '');
+});
+

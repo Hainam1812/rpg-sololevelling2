@@ -3,7 +3,8 @@ import { Card } from '../ui/Card.js';
 import { DifficultyBadge, StatusBadge } from '../ui/Badge.js';
 import { Button } from '../ui/Button.js';
 import { DifficultyLevel } from '../../config/progression.js';
-import { Check, Clock, Play, Lock, Sparkles, ChevronRight } from 'lucide-react';
+import { ActiveTaskState } from '../../store/types.js';
+import { Check, Clock, Play, Pause, Lock, Sparkles, ChevronRight, RotateCcw } from 'lucide-react';
 
 export interface QuestCardProps {
   id: string;
@@ -15,9 +16,13 @@ export interface QuestCardProps {
   status: 'todo' | 'in_progress' | 'completed' | 'locked' | 'overdue';
   startedAt?: string;
   dueAt?: string;
+  activeTaskState?: ActiveTaskState;
   isBoss?: boolean;
   lockReason?: string;
   onStart?: () => void;
+  onPause?: () => void;
+  onResume?: () => void;
+  onResetTimer?: () => void;
   onComplete?: () => void;
   onClickDetail?: () => void;
 }
@@ -32,31 +37,63 @@ export const QuestCard: React.FC<QuestCardProps> = ({
   status,
   startedAt,
   dueAt,
+  activeTaskState,
   isBoss = false,
   lockReason,
   onStart,
+  onPause,
+  onResume,
+  onResetTimer,
   onComplete,
   onClickDetail,
 }) => {
-  const [elapsedSec, setElapsedSec] = useState(0);
+  const isPaused = activeTaskState?.isPaused ?? false;
+  const baseElapsed = activeTaskState?.elapsedSeconds ?? 0;
+  const lastResumed = activeTaskState?.lastResumedAt || startedAt;
 
-  // Timer for in-progress quests
-  useEffect(() => {
-    if (status === 'in_progress' && startedAt) {
-      const startMs = new Date(startedAt).getTime();
-      const updateTimer = () => {
-        const nowMs = Date.now();
-        setElapsedSec(Math.max(0, Math.floor((nowMs - startMs) / 1000)));
-      };
-      updateTimer();
-      const interval = setInterval(updateTimer, 1000);
-      return () => clearInterval(interval);
+  // Individual timer starting from 0 for this quest
+  const [elapsedSec, setElapsedSec] = useState<number>(() => {
+    if (status !== 'in_progress') return 0;
+    if (isPaused) return baseElapsed;
+    if (lastResumed) {
+      const delta = Math.max(0, Math.floor((Date.now() - new Date(lastResumed).getTime()) / 1000));
+      return baseElapsed + delta;
     }
-  }, [status, startedAt]);
+    return 0;
+  });
+
+  useEffect(() => {
+    if (status !== 'in_progress') {
+      setElapsedSec(0);
+      return;
+    }
+
+    if (isPaused) {
+      setElapsedSec(baseElapsed);
+      return;
+    }
+
+    const calcCurrent = () => {
+      if (!lastResumed) return baseElapsed;
+      const delta = Math.max(0, Math.floor((Date.now() - new Date(lastResumed).getTime()) / 1000));
+      return baseElapsed + delta;
+    };
+
+    setElapsedSec(calcCurrent());
+    const interval = setInterval(() => {
+      setElapsedSec(calcCurrent());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [status, isPaused, baseElapsed, lastResumed]);
 
   const formatTimer = (totalSec: number) => {
-    const mins = Math.floor(totalSec / 60);
+    const hours = Math.floor(totalSec / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
     const secs = totalSec % 60;
+    if (hours > 0) {
+      return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
@@ -118,11 +155,45 @@ export const QuestCard: React.FC<QuestCardProps> = ({
           </p>
         </div>
 
-        {/* Real-time timer or Lock Notice */}
+        {/* Real-time individual quest timer */}
         {status === 'in_progress' && (
-          <div className="flex items-center gap-1.5 text-xs text-amber-300 font-pixel bg-amber-950/40 px-2.5 py-1 rounded-lg border border-amber-500/30 w-fit">
-            <Clock className="w-3.5 h-3.5 animate-spin" />
-            <span>Thời gian đã chạy: {formatTimer(elapsedSec)}</span>
+          <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
+            <div className={`flex items-center gap-1.5 text-xs font-pixel px-3 py-1.5 rounded-xl border transition-all ${
+              isPaused
+                ? 'bg-amber-950/60 border-amber-500/50 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
+                : 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
+            }`}>
+              {isPaused ? (
+                <Pause className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              ) : (
+                <Clock className="w-3.5 h-3.5 text-emerald-400 animate-spin shrink-0" />
+              )}
+              <span>
+                {isPaused ? 'Đang tạm dừng:' : 'Thời gian làm:'} <strong className="text-white font-mono text-sm tracking-wider">{formatTimer(elapsedSec)}</strong>
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase font-pixel tracking-wider border ${
+                isPaused
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                  : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30 animate-pulse'
+              }`}>
+                {isPaused ? 'Tạm dừng' : 'Đang tính giờ'}
+              </span>
+
+              {onResetTimer && elapsedSec > 0 && (
+                <button
+                  type="button"
+                  onClick={onResetTimer}
+                  title="Đặt lại bộ đếm về 0"
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                  aria-label="Đặt lại bộ đếm giờ về 0"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -134,7 +205,7 @@ export const QuestCard: React.FC<QuestCardProps> = ({
         )}
 
         {/* Action Button Row */}
-        <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-700/40">
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-700/40 flex-wrap">
           {onClickDetail && (
             <Button
               variant="ghost"
@@ -142,7 +213,7 @@ export const QuestCard: React.FC<QuestCardProps> = ({
               onClick={onClickDetail}
               className="text-xs text-slate-400 hover:text-slate-200"
             >
-              Xem chi tiết
+              Chi tiết
             </Button>
           )}
 
@@ -150,11 +221,39 @@ export const QuestCard: React.FC<QuestCardProps> = ({
             <Button
               variant="secondary"
               size="sm"
-              icon={<Play className="w-3.5 h-3.5" />}
+              icon={<Play className="w-3.5 h-3.5 text-emerald-400" />}
               onClick={onStart}
             >
               Bắt đầu
             </Button>
+          )}
+
+          {status === 'in_progress' && (
+            <>
+              {isPaused ? (
+                onResume && (
+                  <Button
+                    variant="cyan"
+                    size="sm"
+                    icon={<Play className="w-3.5 h-3.5" />}
+                    onClick={onResume}
+                  >
+                    Tiếp tục
+                  </Button>
+                )
+              ) : (
+                onPause && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={<Pause className="w-3.5 h-3.5 text-amber-400" />}
+                    onClick={onPause}
+                  >
+                    Tạm dừng
+                  </Button>
+                )
+              )}
+            </>
           )}
 
           {(status === 'todo' || status === 'in_progress') && onComplete && (

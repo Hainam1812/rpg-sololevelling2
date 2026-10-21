@@ -28,6 +28,9 @@ export type TaskStatus = 'todo' | 'in_progress' | 'completed' | 'locked';
 export interface ActiveTaskState {
   startedAt: string; // ISO string
   dueAt?: string;
+  elapsedSeconds?: number; // total accumulated seconds (starts at 0)
+  isPaused?: boolean; // whether the quest timer is paused
+  lastResumedAt?: string; // ISO string when timer was last started or unpaused
 }
 
 export interface UserProfile {

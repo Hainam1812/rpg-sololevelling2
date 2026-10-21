@@ -5,6 +5,7 @@ import { Button } from '../ui/Button.js';
 import { Sparkles, Check, User, Upload, Plus, Trash2, Image as ImageIcon, X } from 'lucide-react';
 import { saveCharBlob, deleteCharBlob } from '../../store/indexedDb.js';
 import { saveStateToStorageImmediate } from '../../store/persistence.js';
+import { validateCharacterName, sanitizeCharacterInput } from '../../domain/character.js';
 
 interface CharacterSelectModalProps {
   isOpen: boolean;
@@ -62,8 +63,13 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
   };
 
   const handleSaveCustomChar = async () => {
-    if (!uploadFile || !charName.trim()) {
-      setUploadError('Vui lòng chọn file ảnh GIF/PNG và đặt tên cho nhân vật.');
+    const nameVal = validateCharacterName(charName);
+    if (!nameVal.isValid) {
+      setUploadError(nameVal.error || 'Tên nhân vật không được để trống.');
+      return;
+    }
+    if (!uploadFile) {
+      setUploadError('Vui lòng chọn file ảnh GIF/PNG cho nhân vật.');
       return;
     }
 
@@ -72,7 +78,7 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
 
     const newChar = {
       id: newId,
-      displayName: charName.trim(),
+      displayName: nameVal.cleanName,
       tagline: charTagline.trim() || 'Sinh viên 2D Pixel',
       idleSrc: uploadPreviewUrl || '',
       pixelArt: true,
@@ -93,11 +99,9 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
   };
 
   const handleConfirm = () => {
-    let cleanNick = nickname.trim();
-    if (!cleanNick) {
-      cleanNick = 'Sinh Viên';
-    } else if (cleanNick.length < 2 || cleanNick.length > 20) {
-      setErrorMsg('Biệt danh cần dài từ 2 đến 20 ký tự.');
+    const validation = validateCharacterName(nickname);
+    if (!validation.isValid) {
+      setErrorMsg(validation.error || 'Tên nhân vật không được để trống.');
       return;
     }
 
@@ -105,7 +109,7 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
       type: 'SET_PROFILE',
       payload: {
         characterId: selectedId,
-        nickname: cleanNick,
+        nickname: validation.cleanName,
       },
     });
 
@@ -147,25 +151,50 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
 
         {/* Scrollable Body */}
         <div className="py-5 overflow-y-auto space-y-5 flex-1 pr-1">
-          {/* Nickname Input */}
+          {/* Nickname Input with strict constraints */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-violet-400" />
-              <span>Biệt danh của bạn (2 - 20 ký tự):</span>
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-violet-400" />
+                <span>Tên nhân vật / Biệt danh (2 - 20 ký tự):</span>
+              </label>
+              <span className="text-[10px] text-slate-400 font-pixel">
+                {nickname.trim().length}/20
+              </span>
+            </div>
             <input
               type="text"
               value={nickname}
               onChange={e => {
-                setNickname(e.target.value);
+                // Ràng buộc: bỏ các dấu cách dư đằng trước ngay khi nhập
+                const sanitized = sanitizeCharacterInput(e.target.value);
+                setNickname(sanitized);
                 if (errorMsg) setErrorMsg(null);
               }}
-              placeholder="VD: Nam, Mai, Minh, Hoàng, Lan..."
+              onBlur={() => {
+                // Ràng buộc: bỏ các dấu cách dư đằng sau khi hoàn tất nhập
+                setNickname(prev => prev.trim());
+              }}
+              placeholder="VD: Sung Jin-Woo, Nam, Minh, Hoàng, Lan..."
               maxLength={20}
-              className="w-full px-4 py-3 rounded-xl bg-[#0F132E] border border-slate-700 focus:border-violet-500 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-colors"
+              className={`w-full px-4 py-3 rounded-xl bg-[#0F132E] border text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none transition-colors ${
+                errorMsg
+                  ? 'border-rose-500 focus:border-rose-400 focus:ring-1 focus:ring-rose-400'
+                  : 'border-slate-700 focus:border-violet-500 focus:ring-1 focus:ring-violet-500'
+              }`}
             />
-            {errorMsg && (
-              <p className="text-xs text-rose-400 font-medium">{errorMsg}</p>
+            {errorMsg ? (
+              <p className="text-xs text-rose-400 font-medium flex items-center gap-1">
+                <span>⚠️ {errorMsg}</span>
+              </p>
+            ) : nickname.trim().length >= 2 ? (
+              <p className="text-xs text-emerald-400 font-medium flex items-center gap-1">
+                <span>✅ Tên nhân vật hợp lệ: <strong className="text-white font-bold">{nickname.trim()}</strong></span>
+              </p>
+            ) : (
+              <p className="text-[11px] text-slate-400">
+                * Bắt buộc: Không được để trống, khoảng trắng ở đầu và cuối sẽ tự động bị loại bỏ.
+              </p>
             )}
           </div>
 
@@ -246,7 +275,11 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
                   <input
                     type="text"
                     value={charName}
-                    onChange={e => setCharName(e.target.value)}
+                    onChange={e => {
+                      setCharName(sanitizeCharacterInput(e.target.value));
+                      if (uploadError) setUploadError(null);
+                    }}
+                    onBlur={() => setCharName(prev => prev.trim())}
                     placeholder="Tên nhân vật (VD: Coder Tân Binh...)"
                     maxLength={20}
                     className="w-full px-3 py-1.5 rounded-lg bg-[#161B40] border border-slate-700 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-400"
