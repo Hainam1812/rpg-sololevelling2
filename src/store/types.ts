@@ -38,6 +38,9 @@ export interface UserProfile {
   characterId: string;
   createdAt: string;
   motionPreference: 'system' | 'reduced' | 'full';
+  characterScale?: number;
+  characterOffsetX?: number;
+  characterOffsetY?: number;
 }
 
 export interface OrderItem {

@@ -4,7 +4,7 @@ import { DifficultyBadge, StatusBadge } from '../ui/Badge.js';
 import { Button } from '../ui/Button.js';
 import { DifficultyLevel } from '../../config/progression.js';
 import { ActiveTaskState } from '../../store/types.js';
-import { Check, Clock, Play, Pause, Lock, Sparkles, ChevronRight, RotateCcw } from 'lucide-react';
+import { Check, Clock, Play, Pause, Lock, Sparkles, ChevronRight, RotateCcw, Flag } from 'lucide-react';
 
 export interface QuestCardProps {
   id: string;
@@ -20,9 +20,10 @@ export interface QuestCardProps {
   isBoss?: boolean;
   lockReason?: string;
   onStart?: () => void;
-  onPause?: () => void;
+  onPause?: (currentElapsed?: number) => void;
   onResume?: () => void;
   onResetTimer?: () => void;
+  onAbandon?: () => void;
   onComplete?: () => void;
   onClickDetail?: () => void;
 }
@@ -44,12 +45,15 @@ export const QuestCard: React.FC<QuestCardProps> = ({
   onPause,
   onResume,
   onResetTimer,
+  onAbandon,
   onComplete,
   onClickDetail,
 }) => {
   const isPaused = activeTaskState?.isPaused ?? false;
   const baseElapsed = activeTaskState?.elapsedSeconds ?? 0;
   const lastResumed = activeTaskState?.lastResumedAt || startedAt;
+
+  const [confirmAbandon, setConfirmAbandon] = useState(false);
 
   // Individual timer starting from 0 for this quest
   const [elapsedSec, setElapsedSec] = useState<number>(() => {
@@ -59,12 +63,13 @@ export const QuestCard: React.FC<QuestCardProps> = ({
       const delta = Math.max(0, Math.floor((Date.now() - new Date(lastResumed).getTime()) / 1000));
       return baseElapsed + delta;
     }
-    return 0;
+    return baseElapsed;
   });
 
   useEffect(() => {
     if (status !== 'in_progress') {
       setElapsedSec(0);
+      setConfirmAbandon(false);
       return;
     }
 
@@ -247,9 +252,46 @@ export const QuestCard: React.FC<QuestCardProps> = ({
                     variant="secondary"
                     size="sm"
                     icon={<Pause className="w-3.5 h-3.5 text-amber-400" />}
-                    onClick={onPause}
+                    onClick={() => onPause(elapsedSec)}
                   >
                     Tạm dừng
+                  </Button>
+                )
+              )}
+
+              {onAbandon && (
+                confirmAbandon ? (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => {
+                        setConfirmAbandon(false);
+                        onAbandon();
+                      }}
+                      className="px-2.5 text-xs font-bold"
+                    >
+                      Bỏ cuộc?
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setConfirmAbandon(false)}
+                      className="px-2 text-xs text-slate-400"
+                    >
+                      Hủy
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={<Flag className="w-3.5 h-3.5 text-rose-400" />}
+                    onClick={() => setConfirmAbandon(true)}
+                    className="text-rose-300 border-rose-500/40 hover:bg-rose-950/40 hover:text-white"
+                    title="Bỏ cuộc nhiệm vụ này và đặt lại từ đầu"
+                  >
+                    Bỏ cuộc
                   </Button>
                 )
               )}

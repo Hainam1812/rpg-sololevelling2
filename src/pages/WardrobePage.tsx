@@ -13,6 +13,7 @@ import { isCosmeticUnlocked } from '../domain/cosmetics.js';
 import { saveGearBlob, deleteGearBlob, deleteCharBlob, clearAllCustomBlobs } from '../store/indexedDb.js';
 import { saveStateToStorageImmediate } from '../store/persistence.js';
 import { CharacterSelectModal } from '../components/game/CharacterSelectModal.js';
+import { CharacterAdjustModal } from '../components/game/CharacterAdjustModal.js';
 import charactersData from '../data/characters.json' with { type: 'json' };
 import {
   Shirt,
@@ -41,6 +42,7 @@ export const WardrobePage: React.FC = () => {
   const [selectedGearSlot, setSelectedGearSlot] = useState<string>('all');
   const [selectedStageSlot, setSelectedStageSlot] = useState<CosmeticSlot | 'all'>('all');
   const [isCharModalOpen, setIsCharModalOpen] = useState(false);
+  const [isAdjustCharModalOpen, setIsAdjustCharModalOpen] = useState(false);
 
   // Preview override state
   const [previewCosmetic, setPreviewCosmetic] = useState<{ slot: string; id: string } | null>(null);
@@ -276,7 +278,7 @@ export const WardrobePage: React.FC = () => {
               previewCosmetics={previewCosmetic ? { [previewCosmetic.slot]: previewCosmetic.id } : undefined}
             />
 
-            <div className="w-full flex items-center justify-between pt-2 border-t border-slate-700/60">
+            <div className="w-full flex items-center justify-between pt-2 border-t border-slate-700/60 flex-wrap gap-2">
               <div className="text-left">
                 <div className="text-[10px] text-slate-400 font-pixel uppercase">Nhân vật hiện tại</div>
                 <div className="text-xs font-bold text-cyan-300">
@@ -286,14 +288,26 @@ export const WardrobePage: React.FC = () => {
                 </div>
               </div>
 
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={<User className="w-3.5 h-3.5" />}
-                onClick={() => setIsCharModalOpen(true)}
-              >
-                Đổi / Tải GIF
-              </Button>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<SlidersHorizontal className="w-3.5 h-3.5 text-violet-400" />}
+                  onClick={() => setIsAdjustCharModalOpen(true)}
+                  title="Căn chỉnh vị trí và thu phóng nhân vật"
+                >
+                  Căn chỉnh
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<User className="w-3.5 h-3.5" />}
+                  onClick={() => setIsCharModalOpen(true)}
+                >
+                  Đổi GIF
+                </Button>
+              </div>
             </div>
 
             {/* Status of equipped items */}
@@ -1248,6 +1262,12 @@ export const WardrobePage: React.FC = () => {
         onClose={() => setIsCharModalOpen(false)}
         title="Đổi Nhân Vật hoặc Tải Lên GIF Riêng"
         subtitle="Chọn nhân vật sinh viên 2D Pixel hoặc tải file ảnh GIF 2D Pixel của bạn để làm ảnh đại diện phiêu lưu!"
+      />
+
+      {/* Character Alignment & Zoom Adjust Modal */}
+      <CharacterAdjustModal
+        isOpen={isAdjustCharModalOpen}
+        onClose={() => setIsAdjustCharModalOpen(false)}
       />
     </div>
   );

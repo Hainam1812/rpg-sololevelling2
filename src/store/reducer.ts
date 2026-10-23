@@ -8,11 +8,14 @@ import { calculateLevelFromXp } from '../domain/progression.js';
 import { getDefaultState } from './persistence.js';
 
 export type Action =
-  | { type: 'SET_PROFILE'; payload: { nickname?: string; characterId?: string; motionPreference?: 'system' | 'reduced' | 'full' } }
+  | { type: 'SET_PROFILE'; payload: { nickname?: string; characterId?: string; motionPreference?: 'system' | 'reduced' | 'full'; characterScale?: number; characterOffsetX?: number; characterOffsetY?: number } }
   | { type: 'START_TASK'; payload: { questId: string; dueAfterDays?: number } }
-  | { type: 'PAUSE_TASK'; payload: { questId: string } }
+  | { type: 'PAUSE_TASK'; payload: { questId: string; elapsedSeconds?: number } }
   | { type: 'RESUME_TASK'; payload: { questId: string } }
   | { type: 'RESET_TASK_TIMER'; payload: { questId: string } }
+  | { type: 'ABANDON_TASK'; payload: { questId: string } }
+  | { type: 'UPDATE_CHARACTER_TRANSFORM'; payload: { scale?: number; offsetX?: number; offsetY?: number } }
+  | { type: 'RESET_CHARACTER_TRANSFORM' }
   | { type: 'COMPLETE_DAILY_QUEST'; payload: { questId: string; now?: Date } }
   | { type: 'COMPLETE_PACKAGE_TASK'; payload: { packageId: string; taskId: string; now?: Date } }
   | { type: 'ABANDON_PACKAGE'; payload: { packageId: string } }
@@ -102,16 +105,22 @@ export function gameReducer(
     }
 
     case 'PAUSE_TASK': {
-      const { questId } = action.payload;
+      const { questId, elapsedSeconds } = action.payload;
       const current = state.activeTasks[questId];
       if (!current || current.isPaused) {
         break;
       }
-      const resumeAnchor = current.lastResumedAt || current.startedAt;
-      const anchorMs = new Date(resumeAnchor).getTime();
-      const nowMs = now.getTime();
-      const deltaSec = Math.max(0, Math.floor((nowMs - anchorMs) / 1000));
-      const accumulated = (current.elapsedSeconds ?? 0) + deltaSec;
+
+      let accumulated = current.elapsedSeconds ?? 0;
+      if (typeof elapsedSeconds === 'number' && elapsedSeconds >= 0) {
+        accumulated = elapsedSeconds;
+      } else {
+        const resumeAnchor = current.lastResumedAt || current.startedAt;
+        const anchorMs = new Date(resumeAnchor).getTime();
+        const nowMs = now.getTime();
+        const deltaSec = Math.max(0, Math.floor((nowMs - anchorMs) / 1000));
+        accumulated = accumulated + deltaSec;
+      }
 
       nextState = {
         ...state,
@@ -166,6 +175,60 @@ export function gameReducer(
             isPaused: false,
             lastResumedAt: nowIso,
           },
+        },
+      };
+      break;
+    }
+
+    case 'ABANDON_TASK': {
+      const { questId } = action.payload;
+      const nextActive = { ...state.activeTasks };
+      delete nextActive[questId];
+      nextState = {
+        ...state,
+        activeTasks: nextActive,
+      };
+      break;
+    }
+
+    case 'UPDATE_CHARACTER_TRANSFORM': {
+      const currentScale = state.profile.characterScale ?? 1;
+      const currentX = state.profile.characterOffsetX ?? 0;
+      const currentY = state.profile.characterOffsetY ?? 0;
+
+      const nextScale =
+        action.payload.scale !== undefined
+          ? Math.min(2.5, Math.max(0.4, Math.round(action.payload.scale * 100) / 100))
+          : currentScale;
+      const nextX =
+        action.payload.offsetX !== undefined
+          ? Math.min(100, Math.max(-100, Math.round(action.payload.offsetX)))
+          : currentX;
+      const nextY =
+        action.payload.offsetY !== undefined
+          ? Math.min(100, Math.max(-100, Math.round(action.payload.offsetY)))
+          : currentY;
+
+      nextState = {
+        ...state,
+        profile: {
+          ...state.profile,
+          characterScale: nextScale,
+          characterOffsetX: nextX,
+          characterOffsetY: nextY,
+        },
+      };
+      break;
+    }
+
+    case 'RESET_CHARACTER_TRANSFORM': {
+      nextState = {
+        ...state,
+        profile: {
+          ...state.profile,
+          characterScale: 1,
+          characterOffsetX: 0,
+          characterOffsetY: 0,
         },
       };
       break;

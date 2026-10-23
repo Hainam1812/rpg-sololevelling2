@@ -16,6 +16,7 @@ import { QuestCard } from '../components/game/QuestCard.js';
 import { QuestDetailModal } from '../components/game/QuestDetailModal.js';
 import { Card } from '../components/ui/Card.js';
 import { Button } from '../components/ui/Button.js';
+import { CharacterAdjustModal } from '../components/game/CharacterAdjustModal.js';
 import {
   Flame,
   Trophy,
@@ -28,6 +29,7 @@ import {
   Play,
   Check,
   Calendar,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
@@ -42,6 +44,7 @@ export const DashboardPage: React.FC = () => {
   const hotspot = getCampusHotspot(state, now);
 
   const [selectedQuest, setSelectedQuest] = useState<any | null>(null);
+  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
 
   // Active / owned packages
   const activePackages = packagesStatus.filter(p => p.isOwned && !p.isAbandoned);
@@ -61,10 +64,22 @@ export const DashboardPage: React.FC = () => {
           {/* Character Stage with Cosmetics */}
           <div className="shrink-0 flex flex-col items-center">
             <CharacterStage size="md" showNameplate={false} />
-            <Link to="/play/wardrobe" className="mt-2 text-xs font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
-              <span>Đổi trang phục</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
+            <div className="mt-2 flex items-center gap-2.5 text-xs font-semibold flex-wrap justify-center">
+              <Link to="/play/wardrobe" className="text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+                <span>Đổi đồ</span>
+                <ChevronRight className="w-3 h-3" />
+              </Link>
+              <span className="text-slate-600">•</span>
+              <button
+                type="button"
+                onClick={() => setIsAdjustModalOpen(true)}
+                className="text-violet-300 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+                title="Căn chỉnh vị trí và phóng to thu nhỏ nhân vật"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span>Căn chỉnh & Phóng to</span>
+              </button>
+            </div>
           </div>
 
           {/* Player Progression & Stats */}
@@ -251,10 +266,10 @@ export const DashboardPage: React.FC = () => {
                   }
                   onPause={
                     status === 'in_progress' && !item.activeState?.isPaused
-                      ? () =>
+                      ? (elapsed) =>
                           dispatch({
                             type: 'PAUSE_TASK',
-                            payload: { questId: item.quest.id },
+                            payload: { questId: item.quest.id, elapsedSeconds: elapsed },
                           })
                       : undefined
                   }
@@ -272,6 +287,15 @@ export const DashboardPage: React.FC = () => {
                       ? () =>
                           dispatch({
                             type: 'RESET_TASK_TIMER',
+                            payload: { questId: item.quest.id },
+                          })
+                      : undefined
+                  }
+                  onAbandon={
+                    status === 'in_progress'
+                      ? () =>
+                          dispatch({
+                            type: 'ABANDON_TASK',
                             payload: { questId: item.quest.id },
                           })
                       : undefined
@@ -407,37 +431,62 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* Quest Detail Modal */}
-      <QuestDetailModal
-        isOpen={Boolean(selectedQuest)}
-        onClose={() => setSelectedQuest(null)}
-        quest={
-          selectedQuest
-            ? {
-                ...selectedQuest,
-                activeTaskState: state.activeTasks[selectedQuest.id],
-              }
-            : null
+      {(() => {
+        const activeTaskState = selectedQuest ? state.activeTasks[selectedQuest.id] : undefined;
+        const isCompleted = selectedQuest ? state.completions.some(c => c.questId === selectedQuest.id) : false;
+        let status = selectedQuest?.status;
+        if (isCompleted) {
+          status = 'completed';
+        } else if (activeTaskState) {
+          status = 'in_progress';
+        } else if (status === 'in_progress') {
+          status = 'todo';
         }
-        onStart={() => {
-          if (selectedQuest) {
-            dispatch({ type: 'START_TASK', payload: { questId: selectedQuest.id } });
-          }
-        }}
-        onPause={() => {
-          if (selectedQuest) {
-            dispatch({ type: 'PAUSE_TASK', payload: { questId: selectedQuest.id } });
-          }
-        }}
-        onResume={() => {
-          if (selectedQuest) {
-            dispatch({ type: 'RESUME_TASK', payload: { questId: selectedQuest.id } });
-          }
-        }}
-        onComplete={() => {
-          if (selectedQuest) {
-            dispatch({ type: 'COMPLETE_DAILY_QUEST', payload: { questId: selectedQuest.id } });
-          }
-        }}
+
+        const liveQuest = selectedQuest ? {
+          ...selectedQuest,
+          status,
+          activeTaskState,
+        } : null;
+
+        return (
+          <QuestDetailModal
+            isOpen={Boolean(selectedQuest)}
+            onClose={() => setSelectedQuest(null)}
+            quest={liveQuest}
+            onStart={() => {
+              if (selectedQuest) {
+                dispatch({ type: 'START_TASK', payload: { questId: selectedQuest.id } });
+              }
+            }}
+            onPause={(elapsed) => {
+              if (selectedQuest) {
+                dispatch({ type: 'PAUSE_TASK', payload: { questId: selectedQuest.id, elapsedSeconds: elapsed } });
+              }
+            }}
+            onResume={() => {
+              if (selectedQuest) {
+                dispatch({ type: 'RESUME_TASK', payload: { questId: selectedQuest.id } });
+              }
+            }}
+            onAbandon={() => {
+              if (selectedQuest) {
+                dispatch({ type: 'ABANDON_TASK', payload: { questId: selectedQuest.id } });
+              }
+            }}
+            onComplete={() => {
+              if (selectedQuest) {
+                dispatch({ type: 'COMPLETE_DAILY_QUEST', payload: { questId: selectedQuest.id } });
+              }
+            }}
+          />
+        );
+      })()}
+
+      {/* Character Adjust Modal */}
+      <CharacterAdjustModal
+        isOpen={isAdjustModalOpen}
+        onClose={() => setIsAdjustModalOpen(false)}
       />
     </div>
   );

@@ -345,7 +345,7 @@ export const QuestsPage: React.FC = () => {
               }
               onPause={
                 q.status === 'in_progress' && !q.activeTaskState?.isPaused
-                  ? () => dispatch({ type: 'PAUSE_TASK', payload: { questId: q.id } })
+                  ? (elapsed) => dispatch({ type: 'PAUSE_TASK', payload: { questId: q.id, elapsedSeconds: elapsed } })
                   : undefined
               }
               onResume={
@@ -356,6 +356,11 @@ export const QuestsPage: React.FC = () => {
               onResetTimer={
                 q.status === 'in_progress'
                   ? () => dispatch({ type: 'RESET_TASK_TIMER', payload: { questId: q.id } })
+                  : undefined
+              }
+              onAbandon={
+                q.status === 'in_progress'
+                  ? () => dispatch({ type: 'ABANDON_TASK', payload: { questId: q.id } })
                   : undefined
               }
               onComplete={
@@ -440,45 +445,64 @@ export const QuestsPage: React.FC = () => {
       )}
 
       {/* Quest Detail Modal */}
-      <QuestDetailModal
-        isOpen={Boolean(selectedQuest)}
-        onClose={() => setSelectedQuest(null)}
-        quest={
-          selectedQuest
-            ? {
-                ...selectedQuest,
-                activeTaskState: state.activeTasks[selectedQuest.id],
-              }
-            : null
+      {(() => {
+        const activeTaskState = selectedQuest ? state.activeTasks[selectedQuest.id] : undefined;
+        const isCompleted = selectedQuest ? state.completions.some(c => c.questId === selectedQuest.id) : false;
+        let status = selectedQuest?.status;
+        if (isCompleted) {
+          status = 'completed';
+        } else if (activeTaskState) {
+          status = 'in_progress';
+        } else if (status === 'in_progress') {
+          status = 'todo';
         }
-        onStart={() => {
-          if (selectedQuest) {
-            dispatch({ type: 'START_TASK', payload: { questId: selectedQuest.id } });
-          }
-        }}
-        onPause={() => {
-          if (selectedQuest) {
-            dispatch({ type: 'PAUSE_TASK', payload: { questId: selectedQuest.id } });
-          }
-        }}
-        onResume={() => {
-          if (selectedQuest) {
-            dispatch({ type: 'RESUME_TASK', payload: { questId: selectedQuest.id } });
-          }
-        }}
-        onComplete={() => {
-          if (selectedQuest) {
-            if (selectedQuest.source === 'daily') {
-              dispatch({ type: 'COMPLETE_DAILY_QUEST', payload: { questId: selectedQuest.id } });
-            } else if (selectedQuest.packageId) {
-              dispatch({
-                type: 'COMPLETE_PACKAGE_TASK',
-                payload: { packageId: selectedQuest.packageId, taskId: selectedQuest.id },
-              });
-            }
-          }
-        }}
-      />
+
+        const liveQuest = selectedQuest ? {
+          ...selectedQuest,
+          status,
+          activeTaskState,
+        } : null;
+
+        return (
+          <QuestDetailModal
+            isOpen={Boolean(selectedQuest)}
+            onClose={() => setSelectedQuest(null)}
+            quest={liveQuest}
+            onStart={() => {
+              if (selectedQuest) {
+                dispatch({ type: 'START_TASK', payload: { questId: selectedQuest.id } });
+              }
+            }}
+            onPause={(elapsed) => {
+              if (selectedQuest) {
+                dispatch({ type: 'PAUSE_TASK', payload: { questId: selectedQuest.id, elapsedSeconds: elapsed } });
+              }
+            }}
+            onResume={() => {
+              if (selectedQuest) {
+                dispatch({ type: 'RESUME_TASK', payload: { questId: selectedQuest.id } });
+              }
+            }}
+            onAbandon={() => {
+              if (selectedQuest) {
+                dispatch({ type: 'ABANDON_TASK', payload: { questId: selectedQuest.id } });
+              }
+            }}
+            onComplete={() => {
+              if (selectedQuest) {
+                if (selectedQuest.source === 'daily') {
+                  dispatch({ type: 'COMPLETE_DAILY_QUEST', payload: { questId: selectedQuest.id } });
+                } else if (selectedQuest.packageId) {
+                  dispatch({
+                    type: 'COMPLETE_PACKAGE_TASK',
+                    payload: { packageId: selectedQuest.packageId, taskId: selectedQuest.id },
+                  });
+                }
+              }
+            }}
+          />
+        );
+      })()}
     </div>
   );
 };

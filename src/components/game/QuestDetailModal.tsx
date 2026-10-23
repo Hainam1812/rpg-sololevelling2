@@ -4,7 +4,7 @@ import { DifficultyBadge, StatusBadge } from '../ui/Badge.js';
 import { Button } from '../ui/Button.js';
 import { DifficultyLevel } from '../../config/progression.js';
 import { ActiveTaskState } from '../../store/types.js';
-import { Check, Play, Pause, MapPin, AlertCircle, Sparkles, Clock } from 'lucide-react';
+import { Check, Play, Pause, MapPin, AlertCircle, Sparkles, Clock, Flag } from 'lucide-react';
 import { getLocationById } from '../../data/locations.js';
 
 interface QuestDetailModalProps {
@@ -25,8 +25,9 @@ interface QuestDetailModalProps {
     activeTaskState?: ActiveTaskState;
   } | null;
   onStart?: () => void;
-  onPause?: () => void;
+  onPause?: (currentElapsed?: number) => void;
   onResume?: () => void;
+  onAbandon?: () => void;
   onComplete?: () => void;
 }
 
@@ -37,6 +38,7 @@ export const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
   onStart,
   onPause,
   onResume,
+  onAbandon,
   onComplete,
 }) => {
   const isPaused = quest?.activeTaskState?.isPaused ?? false;
@@ -44,11 +46,21 @@ export const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
   const lastResumed = quest?.activeTaskState?.lastResumedAt || quest?.activeTaskState?.startedAt;
   const questStatus = quest?.status;
 
-  const [elapsedSec, setElapsedSec] = useState<number>(0);
+  const [confirmAbandon, setConfirmAbandon] = useState(false);
+  const [elapsedSec, setElapsedSec] = useState<number>(() => {
+    if (!quest || questStatus !== 'in_progress') return 0;
+    if (isPaused) return baseElapsed;
+    if (lastResumed) {
+      const delta = Math.max(0, Math.floor((Date.now() - new Date(lastResumed).getTime()) / 1000));
+      return baseElapsed + delta;
+    }
+    return baseElapsed;
+  });
 
   useEffect(() => {
     if (!isOpen || !quest || questStatus !== 'in_progress') {
       setElapsedSec(0);
+      setConfirmAbandon(false);
       return;
     }
     if (isPaused) {
@@ -208,9 +220,42 @@ export const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
                   <Button
                     variant="secondary"
                     icon={<Pause className="w-4 h-4 text-amber-400" />}
-                    onClick={onPause}
+                    onClick={() => onPause(elapsedSec)}
                   >
                     Tạm dừng
+                  </Button>
+                )
+              )}
+
+              {onAbandon && (
+                confirmAbandon ? (
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="danger"
+                      onClick={() => {
+                        setConfirmAbandon(false);
+                        onAbandon();
+                        onClose();
+                      }}
+                    >
+                      Xác nhận bỏ cuộc
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setConfirmAbandon(false)}
+                      className="text-xs text-slate-400"
+                    >
+                      Hủy
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    icon={<Flag className="w-4 h-4 text-rose-400" />}
+                    onClick={() => setConfirmAbandon(true)}
+                    className="text-rose-300 border-rose-500/40 hover:bg-rose-950/40 hover:text-white"
+                  >
+                    Bỏ cuộc
                   </Button>
                 )
               )}

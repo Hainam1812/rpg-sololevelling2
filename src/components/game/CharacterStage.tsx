@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useGame } from '../../store/GameContext.js';
 import { CharacterSprite } from './CharacterSprite.js';
+import { CharacterAdjustModal } from './CharacterAdjustModal.js';
 import { getCosmeticById } from '../../data/cosmetics.js';
 import charactersData from '../../data/characters.json' with { type: 'json' };
+import { SlidersHorizontal } from 'lucide-react';
 
 interface CharacterStageProps {
   characterId?: string;
@@ -10,6 +12,7 @@ interface CharacterStageProps {
   className?: string;
   previewCosmetics?: Partial<Record<string, string>>;
   showNameplate?: boolean;
+  allowAdjustment?: boolean;
 }
 
 export const CharacterStage: React.FC<CharacterStageProps> = ({
@@ -18,8 +21,12 @@ export const CharacterStage: React.FC<CharacterStageProps> = ({
   className = '',
   previewCosmetics,
   showNameplate = false,
+  allowAdjustment,
 }) => {
   const { state, isCelebrating } = useGame();
+  const [isAdjustOpen, setIsAdjustOpen] = useState(false);
+
+  const canAdjust = allowAdjustment !== undefined ? allowAdjustment : (size === 'md' || size === 'lg');
 
   const activeCharId = characterId || state.profile.characterId || 'hero';
   const charDef = charactersData.find((c: any) => c.id === activeCharId) || charactersData[0];
@@ -149,6 +156,21 @@ export const CharacterStage: React.FC<CharacterStageProps> = ({
             </div>
           </div>
         )}
+        {/* Layer 7: Adjust Controls Button if enabled */}
+        {canAdjust && !isMini && (
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation();
+              setIsAdjustOpen(true);
+            }}
+            className="absolute top-2.5 right-2.5 z-40 p-1.5 rounded-lg bg-black/60 hover:bg-violet-900/80 border border-violet-500/40 text-violet-300 hover:text-white transition-all shadow-md group cursor-pointer"
+            title="Căn chỉnh & Phóng to / Thu nhỏ nhân vật"
+            aria-label="Căn chỉnh và phóng to thu nhỏ nhân vật"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+          </button>
+        )}
       </div>
 
       {/* Nameplate & Title if requested */}
@@ -163,6 +185,14 @@ export const CharacterStage: React.FC<CharacterStageProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Character Adjust Modal */}
+      {canAdjust && (
+        <CharacterAdjustModal
+          isOpen={isAdjustOpen}
+          onClose={() => setIsAdjustOpen(false)}
+        />
       )}
     </div>
   );

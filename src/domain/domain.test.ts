@@ -432,8 +432,35 @@ test('Task timers: start from 0, independent timers, pause and resume, reset tim
   assert.equal(state5.activeTasks['quest-morning'].elapsedSeconds, 0);
   assert.equal(state5.activeTasks['quest-morning'].isPaused, false);
 
-  // 6. RESET_DATA: resets all game data back to default
-  const stateReset = gameReducer(state5, {
+  // 6. ABANDON_TASK: removes task from active tasks completely
+  const state6 = gameReducer(state5, {
+    type: 'ABANDON_TASK',
+    payload: { questId: 'quest-morning' },
+  }, resumeTime).state;
+
+  assert.equal(state6.activeTasks['quest-morning'], undefined);
+  assert.ok(state6.activeTasks['quest-gym']); // other task remains intact
+
+  // 7. Character alignment & zoom transform
+  const stateTransformed = gameReducer(state6, {
+    type: 'UPDATE_CHARACTER_TRANSFORM',
+    payload: { scale: 1.35, offsetX: 15, offsetY: -10 },
+  }).state;
+
+  assert.equal(stateTransformed.profile.characterScale, 1.35);
+  assert.equal(stateTransformed.profile.characterOffsetX, 15);
+  assert.equal(stateTransformed.profile.characterOffsetY, -10);
+
+  const stateResetTransform = gameReducer(stateTransformed, {
+    type: 'RESET_CHARACTER_TRANSFORM',
+  }).state;
+
+  assert.equal(stateResetTransform.profile.characterScale, 1);
+  assert.equal(stateResetTransform.profile.characterOffsetX, 0);
+  assert.equal(stateResetTransform.profile.characterOffsetY, 0);
+
+  // 8. RESET_DATA: resets all game data back to default
+  const stateReset = gameReducer(stateResetTransform, {
     type: 'RESET_DATA',
   }).state;
 

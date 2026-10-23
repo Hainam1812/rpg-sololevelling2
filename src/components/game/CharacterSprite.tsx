@@ -71,11 +71,19 @@ export const CharacterSprite: React.FC<CharacterSpriteProps> = ({
   const stageScale = (character as any).stage?.scale || 0.9;
   const stageOffsetY = (character as any).stage?.offsetY || 0;
 
+  const userScale = state.profile.characterScale ?? 1;
+  const userOffsetX = state.profile.characterOffsetX ?? 0;
+  const userOffsetY = state.profile.characterOffsetY ?? 0;
+
+  const totalScale = scale * stageScale * userScale;
+  const totalTranslateX = userOffsetX;
+  const totalTranslateY = stageOffsetY + userOffsetY;
+
   return (
     <div
-      className={`relative flex items-center justify-center select-none ${className}`}
+      className={`relative flex items-center justify-center select-none transition-transform duration-150 ${className}`}
       style={{
-        transform: `scale(${scale * stageScale}) translateY(${stageOffsetY}%)`,
+        transform: `translate(${totalTranslateX}px, ${totalTranslateY}px) scale(${totalScale})`,
       }}
     >
       {/* Back Layer Gear (Pixel Backpack Straps) */}

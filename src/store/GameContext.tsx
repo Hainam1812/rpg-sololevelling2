@@ -28,9 +28,19 @@ interface InternalStoreState {
 type InternalAction = Action | { type: '__DISMISS_NOTIFICATION' };
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [now, setNow] = useState<Date>(() => new Date());
-  const nowRef = useRef(now);
-  nowRef.current = now;
+  const [dayOffsetDays, setDayOffsetDays] = useState<number>(0);
+  const dayOffsetRef = useRef(0);
+  dayOffsetRef.current = dayOffsetDays;
+
+  const getLiveNow = useCallback(() => {
+    const d = new Date();
+    if (dayOffsetRef.current !== 0) {
+      d.setDate(d.getDate() + dayOffsetRef.current);
+    }
+    return d;
+  }, []);
+
+  const [now, setNow] = useState<Date>(() => getLiveNow());
 
   const [store, rawDispatch] = useReducer(
     (prevState: InternalStoreState, action: InternalAction): InternalStoreState => {
@@ -40,7 +50,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           notifications: prevState.notifications.slice(1),
         };
       }
-      const { state: nextState, notificationsQueue } = gameReducer(prevState.gameState, action, nowRef.current);
+      const actionNow = getLiveNow();
+      const { state: nextState, notificationsQueue } = gameReducer(prevState.gameState, action, actionNow);
       return {
         gameState: nextState,
         notifications: notificationsQueue.length > 0 ? [...prevState.notifications, ...notificationsQueue] : prevState.notifications,
@@ -179,9 +190,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // DEV-only date advancement
   const advanceDateByDays = useCallback((days: number) => {
-    setNow(prev => {
-      const next = new Date(prev);
-      next.setDate(next.getDate() + days);
+    setDayOffsetDays(prev => {
+      const next = prev + days;
+      dayOffsetRef.current = next;
+      const d = new Date();
+      d.setDate(d.getDate() + next);
+      setNow(d);
       return next;
     });
   }, []);
