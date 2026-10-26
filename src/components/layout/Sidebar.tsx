@@ -27,8 +27,9 @@ export const Sidebar: React.FC = () => {
 
   const mainLinks = [
     { to: '/play', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-    { to: '/play/map', label: 'Campus Map', icon: Map },
+    { to: '/play/map', label: 'Campus Map & TKB', icon: Map },
     { to: '/play/quests', label: 'Quests', icon: Compass },
+
     { to: '/play/events', label: 'Events & Thi', icon: CalendarCheck2 },
     { to: '/packages', label: 'Quest Packages', icon: Layers },
     { to: '/play/wardrobe', label: 'Tủ Đồ', icon: Shirt },

@@ -1,5 +1,6 @@
 import { ExamDef, ExamQuestion } from '../data/exams/types.js';
-import { GameState, CompletionEntry, ExamHistoryEntry, NotificationItem } from '../store/types.js';
+import { GameState, CompletionEntry, ExamHistoryEntry, NotificationItem, PersonalExamGoal } from '../store/types.js';
+
 import { getDateKey } from './dates.js';
 import { XP_BY_DIFFICULTY } from '../config/progression.js';
 
@@ -132,3 +133,12 @@ export function gradeExamSession(
     notifications,
   };
 }
+
+export function deleteExamSchedule(
+  personalExams: PersonalExamGoal[],
+  id: string
+): PersonalExamGoal[] {
+  if (!Array.isArray(personalExams)) return [];
+  return personalExams.filter(exam => exam.id !== id);
+}
+

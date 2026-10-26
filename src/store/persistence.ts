@@ -34,6 +34,7 @@ export function getDefaultState(): GameState {
     customCharacters: [],
     examHistory: [],
     personalExams: [],
+    timetable: [],
     lastLocationId: 'classroom',
     cart: [],
     appliedCoupon: null,
@@ -47,7 +48,18 @@ export function loadStateFromStorage(): GameState {
 
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return getDefaultState();
+    if (!raw) {
+      // Check if standalone timetable exists
+      try {
+        const tbRaw = localStorage.getItem('solo_levelling_timetable_v1');
+        if (tbRaw) {
+          const def = getDefaultState();
+          def.timetable = JSON.parse(tbRaw);
+          return def;
+        }
+      } catch {}
+      return getDefaultState();
+    }
 
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return getDefaultState();
@@ -71,6 +83,16 @@ export function loadStateFromStorage(): GameState {
       orders: Array.isArray(parsed.orders) ? parsed.orders : [],
       examHistory: Array.isArray(parsed.examHistory) ? parsed.examHistory : [],
       personalExams: Array.isArray(parsed.personalExams) ? parsed.personalExams : [],
+      timetable: Array.isArray(parsed.timetable)
+        ? parsed.timetable
+        : (() => {
+            try {
+              const tbRaw = localStorage.getItem('solo_levelling_timetable_v1');
+              return tbRaw ? JSON.parse(tbRaw) : [];
+            } catch {
+              return [];
+            }
+          })(),
       customGearMeta: Array.isArray(parsed.customGearMeta) ? parsed.customGearMeta : [],
       equippedCustomGearIds: Array.isArray(parsed.equippedCustomGearIds) ? parsed.equippedCustomGearIds : [],
       customCharacters: Array.isArray(parsed.customCharacters) ? parsed.customCharacters : [],
@@ -97,6 +119,9 @@ export function saveStateToStorage(state: GameState): void {
   saveTimeout = setTimeout(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      if (Array.isArray(state.timetable)) {
+        localStorage.setItem('solo_levelling_timetable_v1', JSON.stringify(state.timetable));
+      }
     } catch (err) {
       console.warn('Could not write state to localStorage (quota or privacy setting):', err);
     }
@@ -113,7 +138,11 @@ export function saveStateToStorageImmediate(state: GameState): void {
 
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (Array.isArray(state.timetable)) {
+      localStorage.setItem('solo_levelling_timetable_v1', JSON.stringify(state.timetable));
+    }
   } catch (err) {
     console.warn('Could not write state to localStorage immediately:', err);
   }
 }
+

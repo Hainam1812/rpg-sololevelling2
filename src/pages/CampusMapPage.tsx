@@ -22,17 +22,34 @@ import {
   ChevronRight,
   X,
   Compass,
+  Calendar,
 } from 'lucide-react';
+import { TimeTableBuilder } from '../components/game/TimeTableBuilder.js';
 
-export const CampusMapPage: React.FC = () => {
+
+interface CampusMapPageProps {
+  defaultView?: 'map' | 'list' | 'timetable';
+}
+
+export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { state, dispatch, now } = useGame();
 
   const urlLocId = searchParams.get('loc');
+  const urlView = searchParams.get('tab') || searchParams.get('view');
+  const initialView: 'map' | 'list' | 'timetable' =
+    urlView === 'timetable'
+      ? 'timetable'
+      : urlView === 'list'
+      ? 'list'
+      : urlView === 'map'
+      ? 'map'
+      : defaultView || 'map';
+
   const [selectedLocId, setSelectedLocId] = useState<string>(
     urlLocId || state.lastLocationId || 'classroom'
   );
-  const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
+  const [viewMode, setViewMode] = useState<'map' | 'list' | 'timetable'>(initialView);
   const [selectedQuest, setSelectedQuest] = useState<any | null>(null);
 
   // Sync URL param
@@ -42,12 +59,25 @@ export const CampusMapPage: React.FC = () => {
     }
   }, [urlLocId]);
 
+  useEffect(() => {
+    if (urlView && (urlView === 'map' || urlView === 'list' || urlView === 'timetable')) {
+      setViewMode(urlView);
+    }
+  }, [urlView]);
+
   const selectLocation = (locId: string) => {
     setSelectedLocId(locId);
     searchParams.set('loc', locId);
     setSearchParams(searchParams);
     dispatch({ type: 'SET_LAST_LOCATION', payload: { locationId: locId } });
   };
+
+  const handleSetViewMode = (mode: 'map' | 'list' | 'timetable') => {
+    setViewMode(mode);
+    searchParams.set('view', mode);
+    setSearchParams(searchParams);
+  };
+
 
   const locationsMastery = getAllLocationsMastery(state, now);
   const hotspot = getCampusHotspot(state, now);
@@ -111,21 +141,32 @@ export const CampusMapPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black font-heading text-slate-100 flex items-center gap-2">
-            <MapIcon className="w-6 h-6 text-cyan-400" />
-            <span>Bản Đồ Campus (Campus Map)</span>
+            {viewMode === 'timetable' ? (
+              <>
+                <Calendar className="w-6 h-6 text-cyan-400" />
+                <span>Thời Khóa Biểu Campus (TimeTable Builder)</span>
+              </>
+            ) : (
+              <>
+                <MapIcon className="w-6 h-6 text-cyan-400" />
+                <span>Bản Đồ Campus (Campus Map)</span>
+              </>
+            )}
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Khám phá 9 địa điểm rèn luyện, cày nhiệm vụ và nâng cao độ thân quen khuôn viên trường
+            {viewMode === 'timetable'
+              ? 'Lập kế hoạch lịch học 12 tiết trong tuần, tự động gộp khối tiết và lưu trữ an toàn'
+              : 'Khám phá 9 địa điểm rèn luyện, cày nhiệm vụ và nâng cao độ thân quen khuôn viên trường'}
           </p>
         </div>
 
-        {/* View Mode Toggle */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#161B40] border border-slate-700/60 self-stretch sm:self-auto">
+        {/* View Mode Toggle: Map / List / Timetable */}
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#161B40] border border-slate-700/60 self-stretch sm:self-auto overflow-x-auto">
           <button
             type="button"
-            onClick={() => setViewMode('map')}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              viewMode === 'map' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'
+            onClick={() => handleSetViewMode('map')}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              viewMode === 'map' ? 'bg-cyan-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <MapIcon className="w-3.5 h-3.5" />
@@ -133,19 +174,34 @@ export const CampusMapPage: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={() => setViewMode('list')}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              viewMode === 'list' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'
+            onClick={() => handleSetViewMode('list')}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              viewMode === 'list' ? 'bg-cyan-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <List className="w-3.5 h-3.5" />
             <span>Danh Sách</span>
           </button>
+          <button
+            type="button"
+            onClick={() => handleSetViewMode('timetable')}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              viewMode === 'timetable' ? 'bg-cyan-600 text-white shadow' : 'text-cyan-400 hover:text-cyan-200 hover:bg-cyan-950/30'
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            <span>Thời Khóa Biểu</span>
+          </button>
         </div>
       </div>
 
-      {/* Main View Area */}
-      {viewMode === 'map' ? (
+      {viewMode === 'timetable' ? (
+        <TimeTableBuilder onGoToMap={() => handleSetViewMode('map')} />
+      ) : (
+        <>
+          {/* Main View Area */}
+          {viewMode === 'map' ? (
+
         <div className="relative rounded-3xl bg-[#0A0D22] border border-slate-700/80 shadow-2xl overflow-hidden p-2 sm:p-4">
           {/* Top-down SVG Campus Visual */}
           <div className="relative w-full aspect-[16/10] min-h-[360px] sm:min-h-[480px]">
@@ -454,8 +510,11 @@ export const CampusMapPage: React.FC = () => {
           )}
         </div>
       </Card>
+      </>
+      )}
 
       {/* Quest Detail Modal */}
+
       {(() => {
         const activeTaskState = selectedQuest ? state.activeTasks[selectedQuest.id] : undefined;
         const isCompleted = selectedQuest ? state.completions.some(c => c.questId === selectedQuest.id) : false;

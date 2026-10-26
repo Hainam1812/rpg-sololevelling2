@@ -1,11 +1,14 @@
-import { GameState, NotificationItem, CosmeticSlot, GearSlot, CustomGearItem, CustomCharacterDef, ExamHistoryEntry, Order } from './types.js';
+import { GameState, NotificationItem, CosmeticSlot, GearSlot, CustomGearItem, CustomCharacterDef, ExamHistoryEntry, Order, CourseSlot } from './types.js';
 import { completeDailyQuest } from '../domain/quests.js';
 import { completePackageTask } from '../domain/packages.js';
 import { completeEventTask } from '../domain/events.js';
 import { evaluateAchievements } from '../domain/achievements.js';
 import { evaluateNewCosmetics, getUnlockedCosmetics } from '../domain/cosmetics.js';
 import { calculateLevelFromXp } from '../domain/progression.js';
+import { deleteExamSchedule } from '../domain/exams.js';
+import { addCourse, removeCourse, saveToStorage } from '../domain/timetable.js';
 import { getDefaultState } from './persistence.js';
+
 
 export type Action =
   | { type: 'SET_PROFILE'; payload: { nickname?: string; characterId?: string; motionPreference?: 'system' | 'reduced' | 'full'; characterScale?: number; characterOffsetX?: number; characterOffsetY?: number } }
@@ -24,6 +27,10 @@ export type Action =
   | { type: 'RECORD_EXAM_RESULT'; payload: { historyEntry: ExamHistoryEntry; addedCompletions: any[]; notifications: NotificationItem[] } }
   | { type: 'ADD_PERSONAL_EXAM'; payload: { title: string; examDate: string } }
   | { type: 'REMOVE_PERSONAL_EXAM'; payload: { id: string } }
+  | { type: 'ADD_COURSE'; payload: { course: Omit<CourseSlot, 'id'> | CourseSlot } }
+  | { type: 'REMOVE_COURSE'; payload: { id: string } }
+  | { type: 'SET_TIMETABLE'; payload: { courses: CourseSlot[] } }
+
   | { type: 'SET_LAST_LOCATION'; payload: { locationId: string } }
   | { type: 'EQUIP_COSMETIC'; payload: { slot: CosmeticSlot; cosmeticId: string } }
   | { type: 'UNEQUIP_COSMETIC'; payload: { slot: CosmeticSlot } }
@@ -342,10 +349,37 @@ export function gameReducer(
     case 'REMOVE_PERSONAL_EXAM': {
       nextState = {
         ...state,
-        personalExams: state.personalExams.filter(g => g.id !== action.payload.id),
+        personalExams: deleteExamSchedule(state.personalExams, action.payload.id),
       };
       break;
     }
+
+    case 'ADD_COURSE': {
+      nextState = {
+        ...state,
+        timetable: addCourse(state.timetable || [], action.payload.course),
+      };
+      break;
+    }
+
+    case 'REMOVE_COURSE': {
+      nextState = {
+        ...state,
+        timetable: removeCourse(state.timetable || [], action.payload.id),
+      };
+      break;
+    }
+
+    case 'SET_TIMETABLE': {
+      const courses = action.payload.courses || [];
+      saveToStorage(courses);
+      nextState = {
+        ...state,
+        timetable: courses,
+      };
+      break;
+    }
+
 
     case 'SET_LAST_LOCATION': {
       nextState = {

@@ -49,10 +49,12 @@ export default function App() {
               <Route path="/play" element={<DashboardPage />} />
               <Route path="/play/quests" element={<QuestsPage />} />
               <Route path="/play/map" element={<CampusMapPage />} />
+              <Route path="/play/timetable" element={<CampusMapPage defaultView="timetable" />} />
               <Route path="/play/events" element={<EventsPage />} />
               <Route path="/play/wardrobe" element={<WardrobePage />} />
               <Route path="/play/achievements" element={<AchievementsPage />} />
               <Route path="/play/profile" element={<ProfilePage />} />
+
 
               {/* 404 Catch-All */}
               <Route path="*" element={<NotFoundPage />} />

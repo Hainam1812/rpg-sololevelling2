@@ -142,6 +142,21 @@ export interface ContactMessage {
   sentAt: string;
 }
 
+export type DayOfWeek = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+
+export interface CourseSlot {
+  id: string;
+  name: string;
+  code: string;
+  day: DayOfWeek;
+  startPeriod: number;
+  endPeriod: number;
+  room: string;
+  lecturer: string;
+  color?: string;
+  createdAt?: string;
+}
+
 export interface GameState {
   schemaVersion: number;
   profile: UserProfile;
@@ -159,9 +174,11 @@ export interface GameState {
   customCharacters?: CustomCharacterDef[];
   examHistory: ExamHistoryEntry[];
   personalExams: PersonalExamGoal[];
+  timetable: CourseSlot[];
   lastLocationId: string;
   cart: string[]; // package IDs (or 'combo_full_party')
   appliedCoupon: string | null;
   orders: Order[];
   contactMessages: ContactMessage[];
 }
+

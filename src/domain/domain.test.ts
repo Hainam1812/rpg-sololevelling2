@@ -8,9 +8,10 @@ import { completeDailyQuest, getDailyQuestDedupKey } from './quests.ts';
 import { completePackageTask, canAttemptTask, isTaskCompleted } from './packages.ts';
 import { calculateCart, calculateComboPrice } from './cart.ts';
 import { evaluateAchievements } from './achievements.ts';
-import { gradeExamSession, calculateExamHearts } from './exams.ts';
+import { gradeExamSession, calculateExamHearts, deleteExamSchedule } from './exams.ts';
 import { validateCharacterName, sanitizeCharacterInput } from './character.ts';
-import { GameState } from '../store/types.ts';
+import { addCourse, removeCourse, generateCourseCells, renderGrid } from './timetable.ts';
+import { GameState, CourseSlot } from '../store/types.ts';
 import { QUEST_PACKAGES } from '../data/questPackages.ts';
 import { EXAMS } from '../data/exams/index.ts';
 import { gameReducer } from '../store/reducer.ts';
@@ -36,6 +37,7 @@ function createMockState(partial: Partial<GameState> = {}): GameState {
     customGearMeta: [],
     examHistory: [],
     personalExams: [],
+    timetable: [],
     lastLocationId: 'dorm',
     cart: [],
     appliedCoupon: null,
@@ -44,6 +46,7 @@ function createMockState(partial: Partial<GameState> = {}): GameState {
     ...partial,
   };
 }
+
 
 test('Date domain handles local date keys properly', () => {
   const testDate = new Date(2026, 9, 18, 0, 5, 0); // Oct 18 2026 00:05 local
@@ -468,4 +471,112 @@ test('Task timers: start from 0, independent timers, pause and resume, reset tim
   assert.deepEqual(stateReset.completions, []);
   assert.equal(stateReset.profile.nickname, '');
 });
+
+test('Exam deletion logic: deleteExamSchedule and REMOVE_PERSONAL_EXAM remove exam cleanly', () => {
+  const initialGoals = [
+    { id: 'exam-1', title: 'Toán Cao Cấp 1', examDate: '2026-11-05', createdAt: '2026-10-01' },
+    { id: 'exam-2', title: 'Python Cơ Bản', examDate: '2026-11-12', createdAt: '2026-10-02' },
+    { id: 'exam-3', title: 'Triết Học Mác - Lênin', examDate: '2026-11-20', createdAt: '2026-10-03' },
+  ];
+
+  // Direct helper test
+  const afterDelete = deleteExamSchedule(initialGoals, 'exam-2');
+  assert.equal(afterDelete.length, 2);
+  assert.equal(afterDelete.some(g => g.id === 'exam-2'), false);
+  assert.equal(afterDelete[0].id, 'exam-1');
+  assert.equal(afterDelete[1].id, 'exam-3');
+
+  // Reducer integration test
+  const stateWithExams = createMockState({ personalExams: initialGoals });
+  const reducedState = gameReducer(stateWithExams, {
+    type: 'REMOVE_PERSONAL_EXAM',
+    payload: { id: 'exam-1' },
+  }).state;
+
+  assert.equal(reducedState.personalExams.length, 2);
+  assert.equal(reducedState.personalExams.some(g => g.id === 'exam-1'), false);
+  assert.equal(reducedState.personalExams[0].id, 'exam-2');
+});
+
+test('TimeTable builder: addCourse, removeCourse, and multiple slots for same course', () => {
+  let list: CourseSlot[] = [];
+
+  // Slot 1: IT002 on Monday period 1-3
+  list = addCourse(list, {
+    name: 'Cấu Trúc Dữ Liệu',
+    code: 'IT002',
+    day: 'mon',
+    startPeriod: 1,
+    endPeriod: 3,
+    room: 'A1-204',
+    lecturer: 'TS. Nguyễn Văn A',
+  });
+  assert.equal(list.length, 1);
+  assert.equal(list[0].code, 'IT002');
+  assert.equal(list[0].startPeriod, 1);
+  assert.equal(list[0].endPeriod, 3);
+
+  // Slot 2: Same course IT002 on Wednesday period 4-5 (multi-slot requirement!)
+  list = addCourse(list, {
+    name: 'Cấu Trúc Dữ Liệu',
+    code: 'IT002',
+    day: 'wed',
+    startPeriod: 4,
+    endPeriod: 5,
+    room: 'B2-Lab',
+    lecturer: 'TS. Nguyễn Văn A',
+  });
+  assert.equal(list.length, 2);
+  assert.equal(list.filter(c => c.code === 'IT002').length, 2);
+
+  // Delete slot 1
+  const slot1Id = list[0].id;
+  list = removeCourse(list, slot1Id);
+  assert.equal(list.length, 1);
+  assert.equal(list[0].day, 'wed');
+});
+
+test('TimeTable grid: merges consecutive periods into rowSpan blocks and marks covered cells', () => {
+  const testCourses: CourseSlot[] = [
+    {
+      id: 'course-calc',
+      name: 'Giải Tích 1',
+      code: 'MATH101',
+      day: 'mon',
+      startPeriod: 3,
+      endPeriod: 5, // Periods 3, 4, 5 (span = 3)
+      room: 'C1-302',
+      lecturer: 'PGS. Trần Mai',
+    },
+  ];
+
+  const mondayCells = generateCourseCells(testCourses, 'mon');
+
+  // Period 1 and 2: empty
+  assert.equal(mondayCells.get(1)?.type, 'empty');
+  assert.equal(mondayCells.get(2)?.type, 'empty');
+
+  // Period 3: start of course with rowSpan = 3
+  const p3 = mondayCells.get(3);
+  assert.equal(p3?.type, 'course');
+  assert.equal(p3?.rowSpan, 3);
+  assert.equal(p3?.course?.code, 'MATH101');
+
+  // Period 4 and 5: covered by the span of period 3
+  assert.equal(mondayCells.get(4)?.type, 'covered');
+  assert.equal(mondayCells.get(5)?.type, 'covered');
+
+  // Period 6: empty
+  assert.equal(mondayCells.get(6)?.type, 'empty');
+
+  // Full 2D Grid rendering
+  const grid = renderGrid(testCourses);
+  assert.equal(grid.length, 12); // 12 periods
+  assert.equal(grid[2].period, 3); // index 2 is period 3
+  assert.equal(grid[2].cells.mon.type, 'course');
+  assert.equal(grid[2].cells.mon.rowSpan, 3);
+  assert.equal(grid[3].cells.mon.type, 'covered');
+  assert.equal(grid[4].cells.mon.type, 'covered');
+});
+
 

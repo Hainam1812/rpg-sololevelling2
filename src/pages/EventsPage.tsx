@@ -4,11 +4,15 @@ import { useGame } from '../store/GameContext.js';
 import { selectActiveEvents } from '../store/selectors.js';
 import { EXAMS } from '../data/exams/index.js';
 import { ExamDef, ExamQuestion } from '../data/exams/types.js';
-import { pickExamQuestions, calculateExamHearts, gradeExamSession } from '../domain/exams.js';
+import { PersonalExamGoal } from '../store/types.js';
+import { pickExamQuestions, calculateExamHearts, gradeExamSession, deleteExamSchedule } from '../domain/exams.js';
+import { saveStateToStorageImmediate } from '../store/persistence.js';
 import { CharacterSprite } from '../components/game/CharacterSprite.js';
 import { Card } from '../components/ui/Card.js';
 import { Button } from '../components/ui/Button.js';
+import { Modal } from '../components/ui/Modal.js';
 import { DifficultyBadge } from '../components/ui/Badge.js';
+
 import {
   CalendarCheck2,
   Swords,
@@ -53,6 +57,23 @@ export const EventsPage: React.FC = () => {
   const [newGoalTitle, setNewGoalTitle] = useState('');
   const [newGoalDate, setNewGoalDate] = useState('');
   const [goalError, setGoalError] = useState<string | null>(null);
+  const [examToDelete, setExamToDelete] = useState<PersonalExamGoal | null>(null);
+
+  const confirmDeleteExam = () => {
+    if (!examToDelete) return;
+    const examId = examToDelete.id;
+    // 1. Dispatch action to state
+    dispatch({ type: 'REMOVE_PERSONAL_EXAM', payload: { id: examId } });
+    // 2. Immediately persist to localStorage to guarantee synchronization
+    const updatedExams = deleteExamSchedule(state.personalExams, examId);
+    saveStateToStorageImmediate({
+      ...state,
+      personalExams: updatedExams,
+    });
+    // 3. Clear modal
+    setExamToDelete(null);
+  };
+
 
   // Keyboard shortcut listener (keys 1, 2, 3, 4) during exam
   useEffect(() => {
@@ -651,12 +672,9 @@ export const EventsPage: React.FC = () => {
                       )}
                       <button
                         type="button"
-                        onClick={() => {
-                          if (confirm(`Xác nhận xóa lịch thi "${goal.title}"?`)) {
-                            dispatch({ type: 'REMOVE_PERSONAL_EXAM', payload: { id: goal.id } });
-                          }
-                        }}
-                        className="p-2 text-slate-500 hover:text-rose-400 transition-colors"
+                        onClick={() => setExamToDelete(goal)}
+                        className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                        title={`Xóa lịch thi ${goal.title}`}
                         aria-label={`Xóa lịch thi ${goal.title}`}
                       >
                         <Trash2 className="w-4 h-4" />
@@ -669,6 +687,48 @@ export const EventsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Exam Confirmation Modal (replaces browser confirm) */}
+      <Modal
+        isOpen={Boolean(examToDelete)}
+        onClose={() => setExamToDelete(null)}
+        title="Xác Nhận Xóa Lịch Thi"
+        maxWidth="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-200 leading-relaxed">
+            Bạn có chắc chắn muốn xóa lịch thi môn{' '}
+            <strong className="text-amber-300 font-bold">{examToDelete?.title}</strong>?
+          </p>
+          <div className="p-3 rounded-xl bg-[#0F132E] border border-slate-700/80 text-xs text-slate-300 space-y-1.5">
+            <div>
+              <span className="text-slate-400">Ngày thi: </span>
+              <strong className="text-slate-100 font-pixel">{examToDelete?.examDate}</strong>
+            </div>
+            <div className="text-[11px] text-rose-400 flex items-center gap-1.5">
+              <span>⚠️</span>
+              <span>Dữ liệu lịch thi này sẽ được xóa hoàn toàn khỏi hệ thống lưu trữ ngay lập tức.</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-700/60">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setExamToDelete(null)}
+            >
+              Hủy Bỏ
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={confirmDeleteExam}
+            >
+              Xác Nhận Xóa
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
+
