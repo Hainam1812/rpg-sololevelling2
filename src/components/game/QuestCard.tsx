@@ -20,6 +20,7 @@ export interface QuestCardProps {
   isBoss?: boolean;
   lockReason?: string;
   onStart?: () => void;
+  onReplay?: () => void;
   onPause?: (currentElapsed?: number) => void;
   onResume?: () => void;
   onResetTimer?: () => void;
@@ -42,6 +43,7 @@ export const QuestCard: React.FC<QuestCardProps> = ({
   isBoss = false,
   lockReason,
   onStart,
+  onReplay,
   onPause,
   onResume,
   onResetTimer,
@@ -129,9 +131,15 @@ export const QuestCard: React.FC<QuestCardProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-full bg-violet-950/80 border border-violet-500/40 text-violet-200 text-xs font-bold font-pixel">
-              +{xp} XP
-            </span>
+            {activeTaskState?.isReplay ? (
+              <span className="px-2 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-cyan-200 text-xs font-bold font-pixel">
+                Làm lại (0 XP)
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-full bg-violet-950/80 border border-violet-500/40 text-violet-200 text-xs font-bold font-pixel">
+                +{xp} XP
+              </span>
+            )}
             <StatusBadge status={status} />
           </div>
         </div>
@@ -305,14 +313,27 @@ export const QuestCard: React.FC<QuestCardProps> = ({
               icon={<Check className="w-4 h-4" />}
               onClick={onComplete}
             >
-              Hoàn thành
+              {activeTaskState?.isReplay ? 'Hoàn thành lại (0 XP)' : 'Hoàn thành'}
             </Button>
           )}
 
           {isCompleted && (
-            <div className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400 py-1 px-2 rounded-lg bg-emerald-950/40">
-              <Check className="w-4 h-4" />
-              <span>Đã nhận +{xp} XP</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400 py-1 px-2 rounded-lg bg-emerald-950/40">
+                <Check className="w-4 h-4" />
+                <span>Đã nhận +{xp} XP</span>
+              </div>
+              {(onReplay || onStart) && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<RotateCcw className="w-3.5 h-3.5 text-cyan-400" />}
+                  onClick={onReplay || onStart}
+                  title="Làm lại nhiệm vụ này (rèn luyện, 0 XP)"
+                >
+                  Làm lại
+                </Button>
+              )}
             </div>
           )}
         </div>

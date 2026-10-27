@@ -95,7 +95,7 @@ test('Daily Quest deduplication prevents duplicate XP', () => {
   const res2 = completeDailyQuest(stateWith1, 'daily-morning-spawn', now);
   assert.equal(res2.nextCompletions.length, 1);
   assert.equal(res2.addedEntry, null);
-  assert.equal(res2.notification, null);
+  assert.equal(res2.notification?.xpEarned, 0);
 
   // Next day completion should work
   const tomorrow = new Date(2026, 9, 19, 10, 0, 0);
@@ -469,7 +469,7 @@ test('Task timers: start from 0, independent timers, pause and resume, reset tim
 
   assert.deepEqual(stateReset.activeTasks, {});
   assert.deepEqual(stateReset.completions, []);
-  assert.equal(stateReset.profile.nickname, '');
+  assert.equal(stateReset.profile.nickname, 'TestUser');
 });
 
 test('Exam deletion logic: deleteExamSchedule and REMOVE_PERSONAL_EXAM remove exam cleanly', () => {
@@ -577,6 +577,135 @@ test('TimeTable grid: merges consecutive periods into rowSpan blocks and marks c
   assert.equal(grid[2].cells.mon.rowSpan, 3);
   assert.equal(grid[3].cells.mon.type, 'covered');
   assert.equal(grid[4].cells.mon.type, 'covered');
+});
+
+test('RESET_DATA preserves unlockedPackages, orders, cart, cosmetics, and timetable', () => {
+  const initialState = createMockState({
+    unlockedPackages: ['pkg-first-year', 'pkg-exam-warrior'],
+    orders: [
+      {
+        id: 'ORD-123',
+        createdAt: '2026-10-20T10:00:00.000Z',
+        items: [{ packageId: 'pkg-first-year', title: 'Năm Nhất Sinh Viên', price: 50000 }],
+        subtotal: 50000,
+        discount: 0,
+        total: 50000,
+        paymentMethod: 'bank',
+        characterName: 'TestUser',
+      },
+    ],
+    equippedCosmetics: { aura: 'au-gold-radiance' },
+    completions: [
+      {
+        key: 'daily:2026-10-20:daily-morning-spawn',
+        questId: 'daily-morning-spawn',
+        completedAt: '2026-10-20T08:00:00.000Z',
+        xp: 10,
+        kind: 'daily',
+        dateKey: '2026-10-20',
+        category: 'academic',
+        difficulty: 'Easy',
+      },
+    ],
+    timetable: [
+      {
+        id: 'c1',
+        name: 'Giải tích',
+        code: 'MATH',
+        day: 'mon',
+        startPeriod: 1,
+        endPeriod: 3,
+        room: 'A1',
+        lecturer: 'Thầy A',
+      },
+    ],
+  });
+
+  const nextState = gameReducer(initialState, { type: 'RESET_DATA' }).state;
+
+  // Progress is reset
+  assert.equal(nextState.completions.length, 0);
+  assert.deepEqual(nextState.activeTasks, {});
+
+  // Purchased items & permanent inventory are preserved
+  assert.deepEqual(nextState.unlockedPackages, ['pkg-first-year', 'pkg-exam-warrior']);
+  assert.equal(nextState.orders.length, 1);
+  assert.equal(nextState.orders[0].id, 'ORD-123');
+  assert.equal(nextState.equippedCosmetics.aura, 'au-gold-radiance');
+  assert.equal(nextState.timetable.length, 1);
+});
+
+test('Replay completed quest does not grant duplicate XP or duplicate completion records', () => {
+  const todayKey = getDateKey(new Date());
+  const initialState = createMockState({
+    unlockedPackages: ['pkg-first-year'],
+    completions: [
+      {
+        key: getDailyQuestDedupKey('daily-morning-spawn', todayKey),
+        questId: 'daily-morning-spawn',
+        completedAt: new Date().toISOString(),
+        xp: 10,
+        kind: 'daily',
+        category: 'daily',
+        difficulty: 'Easy',
+        dateKey: todayKey,
+      },
+    ],
+  });
+
+  // 1. Start replaying daily quest
+  const stateStarted = gameReducer(initialState, {
+    type: 'START_TASK',
+    payload: { questId: 'daily-morning-spawn' },
+  }).state;
+  assert.equal(stateStarted.activeTasks['daily-morning-spawn']?.isReplay, true);
+
+  // 2. Complete the replaying daily quest
+  const stateFinished = gameReducer(stateStarted, {
+    type: 'COMPLETE_DAILY_QUEST',
+    payload: { questId: 'daily-morning-spawn' },
+  }).state;
+
+  // activeTasks is cleared
+  assert.equal(stateFinished.activeTasks['daily-morning-spawn'], undefined);
+  // completions count does NOT increase (remains 1)
+  assert.equal(stateFinished.completions.length, 1);
+  // XP does not increase
+  const totalXp = stateFinished.completions.reduce((acc, c) => acc + c.xp, 0);
+  assert.equal(totalXp, 10);
+});
+
+test('Package task replay allows re-attempt without duplicate XP', () => {
+  const pkg = QUEST_PACKAGES[0];
+  const task = pkg.tasks[0];
+
+  const stateWithCompletion = createMockState({
+    unlockedPackages: [pkg.id],
+    completions: [
+      {
+        key: task.id,
+        questId: task.id,
+        completedAt: '2026-10-20T08:00:00.000Z',
+        xp: task.xp,
+        kind: 'task',
+        category: 'academic',
+        difficulty: 'Easy',
+        dateKey: '2026-10-20',
+        packageId: pkg.id,
+      },
+    ],
+  });
+
+  // Check canAttemptTask on completed task gives canAttempt: true and isReplay: true
+  const check = canAttemptTask(stateWithCompletion, pkg, task);
+  assert.equal(check.canAttempt, true);
+  assert.equal(check.isReplay, true);
+
+  // Complete package task replay
+  const res = completePackageTask(stateWithCompletion, pkg.id, task.id);
+  assert.equal(res.isReplay, true);
+  assert.equal(res.addedEntries.length, 0);
+  assert.equal(res.notifications[0]?.xpEarned, 0);
 });
 
 

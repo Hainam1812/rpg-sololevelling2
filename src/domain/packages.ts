@@ -3,7 +3,7 @@ import { QUEST_PACKAGES, QuestPackageDef, PackageTaskDef } from '../data/questPa
 import { getDateKey } from './dates.js';
 
 export function isTaskCompleted(completions: CompletionEntry[], taskId: string): boolean {
-  return completions.some(c => c.key === taskId);
+  return completions.some(c => c.key === taskId || c.questId === taskId);
 }
 
 export function isPackageCleared(completions: CompletionEntry[], packageId: string): boolean {
@@ -14,27 +14,24 @@ export function canAttemptTask(
   state: GameState,
   pkg: QuestPackageDef,
   task: PackageTaskDef
-): { canAttempt: boolean; reason?: string } {
+): { canAttempt: boolean; reason?: string; isReplay?: boolean } {
   const isFirstTask = pkg.tasks[0]?.id === task.id;
   const isOwned = state.unlockedPackages.includes(pkg.id);
   const isAbandoned = state.abandonedPackages.includes(pkg.id);
-
-  if (isTaskCompleted(state.completions, task.id)) {
-    return { canAttempt: false, reason: 'Nhiệm vụ này đã được hoàn thành!' };
-  }
-
-  // First task can always be attempted for free (trial)
-  if (isFirstTask) {
-    return { canAttempt: true };
-  }
-
-  // Other tasks require ownership
-  if (!isOwned) {
-    return { canAttempt: false, reason: 'Cần mở khóa gói nhiệm vụ này để tiếp tục.' };
-  }
+  const isDone = isTaskCompleted(state.completions, task.id);
 
   if (isAbandoned) {
     return { canAttempt: false, reason: 'Gói đang tạm dừng. Hãy bấm "Tiếp tục gói" để tham gia lại.' };
+  }
+
+  // Other tasks require ownership
+  if (!isFirstTask && !isOwned) {
+    return { canAttempt: false, reason: 'Cần mở khóa gói nhiệm vụ này để tiếp tục.' };
+  }
+
+  // Completed tasks can always be re-attempted (Replay mode without extra XP)
+  if (isDone) {
+    return { canAttempt: true, isReplay: true };
   }
 
   // If Boss task, check that all preceding tasks are completed
@@ -53,6 +50,7 @@ export interface CompletePackageTaskResult {
   nextCompletions: CompletionEntry[];
   addedEntries: CompletionEntry[];
   notifications: NotificationItem[];
+  isReplay?: boolean;
 }
 
 export function completePackageTask(
@@ -61,23 +59,30 @@ export function completePackageTask(
   taskId: string,
   now: Date = new Date()
 ): CompletePackageTaskResult {
-  // Anti-duplication check: if taskId already completed, no-op
-  if (state.completions.some(c => c.key === taskId)) {
+  const isAlreadyDone = state.completions.some(c => c.key === taskId);
+  const pkg = QUEST_PACKAGES.find(p => p.id === packageId);
+  const task = pkg?.tasks.find(t => t.id === taskId);
+
+  if (!pkg || !task) {
+    return { nextCompletions: state.completions, addedEntries: [], notifications: [] };
+  }
+
+  // Anti-duplication check / Replay mode: do not award XP again!
+  if (isAlreadyDone) {
     return {
       nextCompletions: state.completions,
       addedEntries: [],
-      notifications: [],
+      isReplay: true,
+      notifications: [
+        {
+          id: `notif-replay-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          type: 'quest_completed',
+          title: 'Hoàn Thành Luyện Tập!',
+          message: `Bạn đã làm lại thành công "${task.title}". (Chế độ rèn luyện: 0 XP)`,
+          xpEarned: 0,
+        },
+      ],
     };
-  }
-
-  const pkg = QUEST_PACKAGES.find(p => p.id === packageId);
-  if (!pkg) {
-    return { nextCompletions: state.completions, addedEntries: [], notifications: [] };
-  }
-
-  const task = pkg.tasks.find(t => t.id === taskId);
-  if (!task) {
-    return { nextCompletions: state.completions, addedEntries: [], notifications: [] };
   }
 
   const dateKey = getDateKey(now);

@@ -275,6 +275,7 @@ export const WardrobePage: React.FC = () => {
             <CharacterStage
               size="lg"
               showNameplate={true}
+              characterScaleMultiplier={2}
               previewCosmetics={previewCosmetic ? { [previewCosmetic.slot]: previewCosmetic.id } : undefined}
             />
 

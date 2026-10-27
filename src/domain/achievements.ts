@@ -92,11 +92,11 @@ export function evaluateAchievements(
         break;
 
       case 'exam-survivor':
-        current = state.completions.some(c => c.key.startsWith('exam:') && c.key.endsWith(':pass')) ? 1 : 0;
+        current = state.completions.some(c => c.key?.startsWith('exam:') && c.key?.endsWith(':pass')) ? 1 : 0;
         break;
 
       case 'perfect-score':
-        current = state.completions.some(c => c.key.startsWith('exam:') && c.key.endsWith(':perfect')) ? 1 : 0;
+        current = state.completions.some(c => c.key?.startsWith('exam:') && c.key?.endsWith(':perfect')) ? 1 : 0;
         break;
 
       case 'event-hunter': {

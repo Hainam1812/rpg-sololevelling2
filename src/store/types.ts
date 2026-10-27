@@ -31,7 +31,9 @@ export interface ActiveTaskState {
   elapsedSeconds?: number; // total accumulated seconds (starts at 0)
   isPaused?: boolean; // whether the quest timer is paused
   lastResumedAt?: string; // ISO string when timer was last started or unpaused
+  isReplay?: boolean; // whether this task is being replayed
 }
+
 
 export interface UserProfile {
   nickname: string;

@@ -77,7 +77,7 @@ export const QuestsPage: React.FC = () => {
         difficulty: item.quest.difficulty,
         xp: item.quest.xp,
         locationId: item.quest.locationId,
-        status: item.isCompleted ? 'completed' : item.activeState ? 'in_progress' : 'todo',
+        status: item.activeState ? 'in_progress' : item.isCompleted ? 'completed' : 'todo',
         startedAt: item.activeState?.startedAt,
         dueAt: item.activeState?.dueAt,
         activeTaskState: item.activeState,
@@ -86,7 +86,7 @@ export const QuestsPage: React.FC = () => {
     } else if (currentTab === 'active') {
       // In progress daily quests + in progress package tasks
       const activeDailies = dailyStatus.items
-        .filter(item => !item.isCompleted && item.activeState)
+        .filter(item => Boolean(item.activeState))
         .map(item => ({
           id: item.quest.id,
           name: item.quest.name,
@@ -107,9 +107,8 @@ export const QuestsPage: React.FC = () => {
       for (const p of packagesStatus) {
         if (p.isOwned && !p.isAbandoned) {
           for (const task of p.pkg.tasks) {
-            const isDone = isTaskCompleted(state.completions, task.id);
             const activeState = state.activeTasks[task.id];
-            if (!isDone && activeState) {
+            if (activeState) {
               activePkgTasks.push({
                 id: task.id,
                 name: task.title,
@@ -140,10 +139,10 @@ export const QuestsPage: React.FC = () => {
           const isDone = isTaskCompleted(state.completions, task.id);
           const activeState = state.activeTasks[task.id];
 
-          const status = isDone
-            ? 'completed'
-            : activeState
+          const status = activeState
             ? 'in_progress'
+            : isDone
+            ? 'completed'
             : check.canAttempt
             ? 'todo'
             : 'locked';
@@ -343,6 +342,11 @@ export const QuestsPage: React.FC = () => {
                   ? () => dispatch({ type: 'START_TASK', payload: { questId: q.id } })
                   : undefined
               }
+              onReplay={
+                q.status === 'completed'
+                  ? () => dispatch({ type: 'START_TASK', payload: { questId: q.id } })
+                  : undefined
+              }
               onPause={
                 q.status === 'in_progress' && !q.activeTaskState?.isPaused
                   ? (elapsed) => dispatch({ type: 'PAUSE_TASK', payload: { questId: q.id, elapsedSeconds: elapsed } })
@@ -449,10 +453,10 @@ export const QuestsPage: React.FC = () => {
         const activeTaskState = selectedQuest ? state.activeTasks[selectedQuest.id] : undefined;
         const isCompleted = selectedQuest ? state.completions.some(c => c.questId === selectedQuest.id) : false;
         let status = selectedQuest?.status;
-        if (isCompleted) {
-          status = 'completed';
-        } else if (activeTaskState) {
+        if (activeTaskState) {
           status = 'in_progress';
+        } else if (isCompleted) {
+          status = 'completed';
         } else if (status === 'in_progress') {
           status = 'todo';
         }

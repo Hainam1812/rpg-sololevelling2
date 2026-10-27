@@ -13,6 +13,7 @@ interface CharacterStageProps {
   previewCosmetics?: Partial<Record<string, string>>;
   showNameplate?: boolean;
   allowAdjustment?: boolean;
+  characterScaleMultiplier?: number;
 }
 
 export const CharacterStage: React.FC<CharacterStageProps> = ({
@@ -22,6 +23,7 @@ export const CharacterStage: React.FC<CharacterStageProps> = ({
   previewCosmetics,
   showNameplate = false,
   allowAdjustment,
+  characterScaleMultiplier = 1,
 }) => {
   const { state, isCelebrating } = useGame();
   const [isAdjustOpen, setIsAdjustOpen] = useState(false);
@@ -109,7 +111,7 @@ export const CharacterStage: React.FC<CharacterStageProps> = ({
             key={activeCharId} // Keeps key stable across cosmetic changes!
             characterId={activeCharId}
             isCelebrating={isCelebrating}
-            scale={size === 'lg' ? 1.1 : size === 'sm' ? 0.75 : 0.95}
+            scale={(size === 'lg' ? 1.1 : size === 'sm' ? 0.75 : 0.95) * characterScaleMultiplier}
           />
         </div>
 

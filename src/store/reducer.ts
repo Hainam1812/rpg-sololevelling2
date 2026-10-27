@@ -7,7 +7,9 @@ import { evaluateNewCosmetics, getUnlockedCosmetics } from '../domain/cosmetics.
 import { calculateLevelFromXp } from '../domain/progression.js';
 import { deleteExamSchedule } from '../domain/exams.js';
 import { addCourse, removeCourse, saveToStorage } from '../domain/timetable.js';
+import { getDateKey } from '../domain/dates.js';
 import { getDefaultState } from './persistence.js';
+
 
 
 export type Action =
@@ -95,6 +97,16 @@ export function gameReducer(
         dueAt = d.toISOString();
       }
 
+      // Detect if quest is already completed (Replay Mode)
+      const dateKey = getDateKey(now);
+      const isDailyCompleted = state.completions.some(
+        c => c.key === `${questId}@${dateKey}` || (c.questId === questId && c.dateKey === dateKey)
+      );
+      const isPkgCompleted = state.completions.some(
+        c => c.key === questId || (c.questId === questId && Boolean(c.packageId))
+      );
+      const isReplay = isDailyCompleted || isPkgCompleted;
+
       nextState = {
         ...state,
         activeTasks: {
@@ -105,11 +117,13 @@ export function gameReducer(
             elapsedSeconds: 0,
             isPaused: false,
             lastResumedAt: startedAt,
+            isReplay,
           },
         },
       };
       break;
     }
+
 
     case 'PAUSE_TASK': {
       const { questId, elapsedSeconds } = action.payload;
@@ -243,19 +257,25 @@ export function gameReducer(
 
     case 'COMPLETE_DAILY_QUEST': {
       const res = completeDailyQuest(state, action.payload.questId, action.payload.now || now);
-      if (res.addedEntry) {
-        // Remove from active tasks
-        const nextActive = { ...state.activeTasks };
-        delete nextActive[action.payload.questId];
+      // Remove from active tasks (whether first-time or replay)
+      const nextActive = { ...state.activeTasks };
+      delete nextActive[action.payload.questId];
 
+      if (res.addedEntry) {
         nextState = {
           ...state,
           completions: res.nextCompletions,
           activeTasks: nextActive,
           lastLocationId: res.addedEntry.locationId || state.lastLocationId,
         };
-        if (res.notification) newNotifications.push(res.notification);
+      } else {
+        // Replay completion: NO XP added, completions unchanged
+        nextState = {
+          ...state,
+          activeTasks: nextActive,
+        };
       }
+      if (res.notification) newNotifications.push(res.notification);
       break;
     }
 
@@ -266,20 +286,28 @@ export function gameReducer(
         action.payload.taskId,
         action.payload.now || now
       );
-      if (res.addedEntries.length > 0) {
-        const nextActive = { ...state.activeTasks };
-        delete nextActive[action.payload.taskId];
+      // Remove from active tasks (whether first-time or replay)
+      const nextActive = { ...state.activeTasks };
+      delete nextActive[action.payload.taskId];
 
+      if (res.addedEntries.length > 0) {
         nextState = {
           ...state,
           completions: res.nextCompletions,
           activeTasks: nextActive,
           lastLocationId: res.addedEntries[0].locationId || state.lastLocationId,
         };
-        newNotifications.push(...res.notifications);
+      } else {
+        // Replay completion: NO XP added, completions unchanged
+        nextState = {
+          ...state,
+          activeTasks: nextActive,
+        };
       }
+      newNotifications.push(...res.notifications);
       break;
     }
+
 
     case 'ABANDON_PACKAGE': {
       const pkgId = action.payload.packageId;
@@ -663,9 +691,39 @@ export function gameReducer(
     }
 
     case 'RESET_DATA': {
-      nextState = getDefaultState();
+      nextState = {
+        ...state,
+        // Reset gameplay progression only
+        completions: [],
+        activeTasks: {},
+        abandonedPackages: [],
+        unlockedAchievements: [],
+        examHistory: [],
+        personalExams: [],
+        lastLocationId: 'classroom',
+
+        // PRESERVED PURCHASES, INVENTORY & ACCOUNT (Requirement 2):
+        unlockedPackages: state.unlockedPackages, // Purchased/unlocked packages permanently preserved
+        orders: state.orders,                     // Order & payment history permanently preserved
+        cart: state.cart,                         // Cart preserved
+        appliedCoupon: state.appliedCoupon,
+        profile: {
+          ...state.profile,
+          // Preserved character, nickname and settings
+        },
+        equippedCosmetics: state.equippedCosmetics,
+        equippedGear: state.equippedGear,
+        seenCosmetics: state.seenCosmetics,
+        seenGear: state.seenGear,
+        customGearMeta: state.customGearMeta,
+        equippedCustomGearIds: state.equippedCustomGearIds,
+        customCharacters: state.customCharacters,
+        timetable: state.timetable,
+        contactMessages: state.contactMessages,
+      };
       break;
     }
+
 
     default:
       return { state, notificationsQueue: [] };

@@ -4,12 +4,17 @@ import { useGame } from '../../store/GameContext.js';
 import { selectLevelProgress, selectStreak } from '../../store/selectors.js';
 import { Logo } from '../ui/Logo.js';
 import { CharacterStage } from '../game/CharacterStage.js';
-import { ShoppingBag, Flame, Share2, Award, Shirt, User, Settings, Menu, X, RotateCcw } from 'lucide-react';
+import { ShoppingBag, Flame, Share2, Award, Shirt, User, Settings, Menu, X, RotateCcw, PanelLeftOpen } from 'lucide-react';
 import { ShareModal } from '../share/ShareModal.js';
 import { ResetDataModal } from '../ui/ResetDataModal.js';
 import { CharacterSelectModal } from '../game/CharacterSelectModal.js';
 
-export const Header: React.FC = () => {
+export interface HeaderProps {
+  isSidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ isSidebarCollapsed, onToggleSidebar }) => {
   const { state, now } = useGame();
   const navigate = useNavigate();
   const levelProg = selectLevelProgress(state);
@@ -26,10 +31,25 @@ export const Header: React.FC = () => {
     <>
       <header className="sticky top-0 z-40 w-full bg-[#0A0E27]/90 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-6 py-2.5">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 select-none hover:opacity-90 transition-opacity">
-            <Logo size="sm" showSlogan={false} />
-          </Link>
+          {/* Logo & Sidebar toggle */}
+          <div className="flex items-center gap-2.5">
+            {onToggleSidebar && isSidebarCollapsed && (
+              <button
+                type="button"
+                onClick={onToggleSidebar}
+                className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#161B40] hover:bg-violet-900/60 border border-violet-500/50 text-violet-300 hover:text-white transition-all cursor-pointer shadow-sm group"
+                title="Mở thanh công cụ bên trái (Expand Toolbar)"
+                aria-label="Mở thanh công cụ"
+              >
+                <PanelLeftOpen className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-bold font-heading">Menu</span>
+              </button>
+            )}
+            <Link to="/" className="flex items-center gap-2 select-none hover:opacity-90 transition-opacity">
+              <Logo size="sm" showSlogan={false} />
+            </Link>
+          </div>
+
 
           {/* Center / Right controls */}
           <div className="flex items-center gap-2 sm:gap-4">

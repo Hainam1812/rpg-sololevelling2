@@ -19,6 +19,7 @@ export interface CompleteDailyQuestResult {
   nextCompletions: CompletionEntry[];
   addedEntry: CompletionEntry | null;
   notification: NotificationItem | null;
+  isReplay?: boolean;
 }
 
 export function completeDailyQuest(
@@ -29,14 +30,25 @@ export function completeDailyQuest(
   const dateKey = getDateKey(now);
   const targetKey = getDailyQuestDedupKey(questId, dateKey);
 
-  // Check anti-duplication
+  // Check anti-duplication / Replay mode
   if (state.completions.some(c => c.key === targetKey)) {
+    const quest = DAILY_QUESTS.find(q => q.id === questId);
     return {
       nextCompletions: state.completions,
       addedEntry: null,
-      notification: null,
+      isReplay: true,
+      notification: quest
+        ? {
+            id: `notif-replay-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            type: 'quest_completed',
+            title: 'Hoàn Thành Luyện Tập!',
+            message: `Bạn đã làm lại thành công nhiệm vụ "${quest.name}". (Chế độ rèn luyện: 0 XP)`,
+            xpEarned: 0,
+          }
+        : null,
     };
   }
+
 
   const quest = DAILY_QUESTS.find(q => q.id === questId);
   if (!quest) {

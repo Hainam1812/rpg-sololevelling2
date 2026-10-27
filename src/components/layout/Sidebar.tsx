@@ -13,13 +13,19 @@ import {
   Mail,
   Flame,
   ChevronRight,
+  PanelLeftClose,
 } from 'lucide-react';
 import { Logo } from '../ui/Logo.js';
 import { CharacterStage } from '../game/CharacterStage.js';
 import { useGame } from '../../store/GameContext.js';
 import { selectLevelProgress, selectStreak, selectTotalXp } from '../../store/selectors.js';
 
-export const Sidebar: React.FC = () => {
+export interface SidebarProps {
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse }) => {
   const { state, now } = useGame();
   const levelProg = selectLevelProgress(state);
   const streak = selectStreak(state, now);
@@ -42,14 +48,30 @@ export const Sidebar: React.FC = () => {
     { to: '/contact', label: 'Liên Hệ & FAQ', icon: Mail },
   ];
 
+  if (isCollapsed) {
+    return null;
+  }
+
   return (
-    <aside className="hidden md:flex flex-col w-64 lg:w-72 bg-[#0F132E] border-r border-slate-800 shrink-0 h-screen sticky top-0 overflow-y-auto">
-      {/* Brand Logo Header */}
-      <div className="p-5 border-b border-slate-800">
-        <Link to="/" className="inline-block hover:opacity-90 transition-opacity">
+    <aside className="hidden md:flex flex-col w-64 lg:w-72 bg-[#0F132E] border-r border-slate-800 shrink-0 h-screen sticky top-0 overflow-y-auto transition-all duration-300">
+      {/* Brand Logo Header with Collapse Button */}
+      <div className="p-5 border-b border-slate-800 flex items-center justify-between gap-2">
+        <Link to="/" className="inline-block hover:opacity-90 transition-opacity min-w-0">
           <Logo size="md" showSlogan={true} />
         </Link>
+        {onToggleCollapse && (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800/80 rounded-xl border border-slate-700/60 transition-colors cursor-pointer shrink-0"
+            title="Thu gọn thanh công cụ (Collapse)"
+            aria-label="Thu gọn thanh công cụ"
+          >
+            <PanelLeftClose className="w-4 h-4 text-slate-400 hover:text-cyan-300" />
+          </button>
+        )}
       </div>
+
 
       {/* Main Navigation */}
       <nav className="flex-1 p-3.5 space-y-1" aria-label="Sidebar navigation">

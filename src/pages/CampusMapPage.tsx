@@ -100,7 +100,7 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
       difficulty: q.difficulty,
       xp: q.xp,
       locationId: q.locationId,
-      status: (isCompleted ? 'completed' : activeState ? 'in_progress' : 'todo') as any,
+      status: (activeState ? 'in_progress' : isCompleted ? 'completed' : 'todo') as any,
       startedAt: activeState?.startedAt,
       source: 'daily' as const,
     };
@@ -122,7 +122,7 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
           difficulty: t.difficulty,
           xp: t.xp,
           locationId: t.locationId,
-          status: isDone ? 'completed' : activeState ? 'in_progress' : check.canAttempt ? 'todo' : 'locked',
+          status: activeState ? 'in_progress' : isDone ? 'completed' : check.canAttempt ? 'todo' : 'locked',
           startedAt: activeState?.startedAt,
           packageId: pkg.id,
           isBoss: t.isBoss,
@@ -475,6 +475,11 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
                       ? () => dispatch({ type: 'START_TASK', payload: { questId: q.id } })
                       : undefined
                   }
+                  onReplay={
+                    q.status === 'completed'
+                      ? () => dispatch({ type: 'START_TASK', payload: { questId: q.id } })
+                      : undefined
+                  }
                   onPause={
                     q.status === 'in_progress' && !state.activeTasks[q.id]?.isPaused
                       ? (elapsed) => dispatch({ type: 'PAUSE_TASK', payload: { questId: q.id, elapsedSeconds: elapsed } })
@@ -519,10 +524,10 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
         const activeTaskState = selectedQuest ? state.activeTasks[selectedQuest.id] : undefined;
         const isCompleted = selectedQuest ? state.completions.some(c => c.questId === selectedQuest.id) : false;
         let status = selectedQuest?.status;
-        if (isCompleted) {
-          status = 'completed';
-        } else if (activeTaskState) {
+        if (activeTaskState) {
           status = 'in_progress';
+        } else if (isCompleted) {
+          status = 'completed';
         } else if (status === 'in_progress') {
           status = 'todo';
         }

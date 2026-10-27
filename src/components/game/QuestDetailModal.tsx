@@ -4,7 +4,7 @@ import { DifficultyBadge, StatusBadge } from '../ui/Badge.js';
 import { Button } from '../ui/Button.js';
 import { DifficultyLevel } from '../../config/progression.js';
 import { ActiveTaskState } from '../../store/types.js';
-import { Check, Play, Pause, MapPin, AlertCircle, Sparkles, Clock, Flag } from 'lucide-react';
+import { Check, Play, Pause, MapPin, AlertCircle, Sparkles, Clock, Flag, RotateCcw } from 'lucide-react';
 import { getLocationById } from '../../data/locations.js';
 
 interface QuestDetailModalProps {
@@ -271,14 +271,30 @@ export const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
                 onClose();
               }}
             >
-              Xác nhận hoàn thành (+{quest.xp} XP)
+              {quest.activeTaskState?.isReplay
+                ? 'Xác nhận hoàn thành (Làm lại - 0 XP)'
+                : `Xác nhận hoàn thành (+${quest.xp} XP)`}
             </Button>
           )}
 
           {isCompleted && (
-            <div className="text-xs font-semibold text-emerald-400 flex items-center gap-1">
-              <Check className="w-4 h-4" />
-              <span>Đã hoàn thành</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="text-xs font-semibold text-emerald-400 flex items-center gap-1">
+                <Check className="w-4 h-4" />
+                <span>Đã hoàn thành</span>
+              </div>
+              {onStart && (
+                <Button
+                  variant="secondary"
+                  icon={<RotateCcw className="w-4 h-4 text-cyan-400" />}
+                  onClick={() => {
+                    onStart();
+                    onClose();
+                  }}
+                >
+                  Làm lại (0 XP)
+                </Button>
+              )}
             </div>
           )}
         </div>

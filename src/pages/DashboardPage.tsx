@@ -230,7 +230,7 @@ export const DashboardPage: React.FC = () => {
 
           <div className="space-y-3">
             {dailyStatus.items.slice(0, 4).map(item => {
-              const status = item.isCompleted ? 'completed' : item.activeState ? 'in_progress' : 'todo';
+              const status = item.activeState ? 'in_progress' : item.isCompleted ? 'completed' : 'todo';
               return (
                 <QuestCard
                   key={item.quest.id}
@@ -259,6 +259,12 @@ export const DashboardPage: React.FC = () => {
                     })
                   }
                   onStart={() =>
+                    dispatch({
+                      type: 'START_TASK',
+                      payload: { questId: item.quest.id },
+                    })
+                  }
+                  onReplay={() =>
                     dispatch({
                       type: 'START_TASK',
                       payload: { questId: item.quest.id },
@@ -435,10 +441,10 @@ export const DashboardPage: React.FC = () => {
         const activeTaskState = selectedQuest ? state.activeTasks[selectedQuest.id] : undefined;
         const isCompleted = selectedQuest ? state.completions.some(c => c.questId === selectedQuest.id) : false;
         let status = selectedQuest?.status;
-        if (isCompleted) {
-          status = 'completed';
-        } else if (activeTaskState) {
+        if (activeTaskState) {
           status = 'in_progress';
+        } else if (isCompleted) {
+          status = 'completed';
         } else if (status === 'in_progress') {
           status = 'todo';
         }

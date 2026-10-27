@@ -32,19 +32,35 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
     }
   }, [isPlayArea, hasNickname, charExists]);
 
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('solo_levelling_sidebar_collapsed') === 'true';
+  });
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('solo_levelling_sidebar_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
   return (
     <div className="min-h-screen bg-[#0A0E27] text-slate-100 flex flex-col md:flex-row">
-      {/* Desktop Sidebar */}
-      <Sidebar />
+      {/* Desktop Sidebar (Collapsible) */}
+      <Sidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={toggleSidebar} />
 
       {/* Main Content Column */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen pb-20 md:pb-6">
-        <Header />
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen pb-20 md:pb-6 transition-all duration-300">
+        <Header isSidebarCollapsed={isSidebarCollapsed} onToggleSidebar={toggleSidebar} />
 
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           {children}
         </main>
       </div>
+
 
       {/* Mobile Bottom Navigation */}
       <BottomNav />
