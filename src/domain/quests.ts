@@ -93,3 +93,58 @@ export function completeDailyQuest(
     notification,
   };
 }
+
+export interface SortableQuestItem {
+  id: string;
+  name: string;
+  status: 'todo' | 'in_progress' | 'completed' | 'locked' | 'overdue' | string;
+  isBoss?: boolean;
+  category?: string;
+  difficulty?: any;
+  [key: string]: any;
+}
+
+/**
+ * Sorts quest lists deterministically by completion status:
+ * - Incomplete quests (in_progress, todo, locked, overdue) ALWAYS appear first
+ * - Completed quests ALWAYS appear at the bottom
+ * - Within incomplete group: in_progress > todo > locked > overdue
+ */
+export function sortQuestsByCompletionStatus<T extends SortableQuestItem>(quests: T[]): T[] {
+  const getStatusWeight = (status: string): number => {
+    switch (status) {
+      case 'in_progress':
+        return 1; // Highest priority: currently underway
+      case 'todo':
+        return 2; // Ready to attempt
+      case 'locked':
+        return 3; // Blocked or locked
+      case 'overdue':
+        return 4; // Overdue
+      case 'completed':
+        return 99; // Finished - always at the very bottom
+      default:
+        return 10;
+    }
+  };
+
+  return [...quests].sort((a, b) => {
+    const isCompletedA = a.status === 'completed';
+    const isCompletedB = b.status === 'completed';
+
+    // 1. Quests not completed ALWAYS appear before completed quests
+    if (!isCompletedA && isCompletedB) return -1;
+    if (isCompletedA && !isCompletedB) return 1;
+
+    // 2. Within the same completion status, prioritize by status weight
+    const weightDiff = getStatusWeight(a.status) - getStatusWeight(b.status);
+    if (weightDiff !== 0) return weightDiff;
+
+    // 3. Boss quests prioritized if in the same status
+    if (a.isBoss && !b.isBoss) return -1;
+    if (!a.isBoss && b.isBoss) return 1;
+
+    // 4. Stable secondary sort by name
+    return a.name.localeCompare(b.name, 'vi');
+  });
+}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useGame } from '../store/GameContext.js';
 import { CAMPUS_LOCATIONS, LocationDef } from '../data/locations.js';
@@ -10,7 +10,7 @@ import { QuestCard } from '../components/game/QuestCard.js';
 import { QuestDetailModal } from '../components/game/QuestDetailModal.js';
 import { DAILY_QUESTS } from '../data/dailyQuests.js';
 import { QUEST_PACKAGES } from '../data/questPackages.js';
-import { isDailyQuestCompleted } from '../domain/quests.js';
+import { isDailyQuestCompleted, sortQuestsByCompletionStatus } from '../domain/quests.js';
 import { isTaskCompleted, canAttemptTask } from '../domain/packages.js';
 import { getDateKey } from '../domain/dates.js';
 import {
@@ -23,6 +23,11 @@ import {
   X,
   Compass,
   Calendar,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  LocateFixed,
+  RotateCcw,
 } from 'lucide-react';
 import { TimeTableBuilder } from '../components/game/TimeTableBuilder.js';
 
@@ -51,6 +56,200 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
   );
   const [viewMode, setViewMode] = useState<'map' | 'list' | 'timetable'>(initialView);
   const [selectedQuest, setSelectedQuest] = useState<any | null>(null);
+
+  // Map Zoom & Pan State & Controls
+  const [zoom, setZoom] = useState<number>(1);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const dragStartRef = useRef<{ clientX: number; clientY: number; startPanX: number; startPanY: number }>({
+    clientX: 0,
+    clientY: 0,
+    startPanX: 0,
+    startPanY: 0,
+  });
+  const dragDistanceRef = useRef<number>(0);
+  const pinchStartDistRef = useRef<number | null>(null);
+  const pinchStartZoomRef = useRef<number>(1);
+
+  const MIN_ZOOM = 1;
+  const MAX_ZOOM = 2.8;
+  const ZOOM_STEP = 0.35;
+
+  const clampPan = (newX: number, newY: number, currentZoom: number): { x: number; y: number } => {
+    if (!mapContainerRef.current) return { x: newX, y: newY };
+    const rect = mapContainerRef.current.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+
+    // Content bounds around center
+    const maxPanX = Math.max(0, (width * (currentZoom - 1)) / 2) + 35;
+    const maxPanY = Math.max(0, (height * (currentZoom - 1)) / 2) + 35;
+
+    const clampedX = Math.min(Math.max(newX, -maxPanX), maxPanX);
+    const clampedY = Math.min(Math.max(newY, -maxPanY), maxPanY);
+
+    return { x: clampedX, y: clampedY };
+  };
+
+  const centerOnLocation = (locX: number, locY: number, targetZoom = Math.max(zoom, 1.4)) => {
+    if (!mapContainerRef.current) return;
+    const rect = mapContainerRef.current.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+
+    const dxFraction = (400 - locX) / 800;
+    const dyFraction = (240 - locY) / 480;
+
+    const targetX = dxFraction * width * targetZoom;
+    const targetY = dyFraction * height * targetZoom;
+
+    const clamped = clampPan(targetX, targetY, targetZoom);
+    setZoom(targetZoom);
+    setPan(clamped);
+  };
+
+  const handleLocationClick = (locId: string, locX: number, locY: number) => {
+    if (dragDistanceRef.current >= 8) {
+      return;
+    }
+    selectLocation(locId);
+  };
+
+  const handleZoomIn = () => {
+    setZoom(prev => {
+      const next = Math.min(MAX_ZOOM, Math.round((prev + ZOOM_STEP) * 10) / 10);
+      setPan(currentPan => clampPan(currentPan.x, currentPan.y, next));
+      return next;
+    });
+  };
+
+  const handleZoomOut = () => {
+    setZoom(prev => {
+      const next = Math.max(MIN_ZOOM, Math.round((prev - ZOOM_STEP) * 10) / 10);
+      setPan(currentPan => clampPan(currentPan.x, currentPan.y, next));
+      return next;
+    });
+  };
+
+  const handleResetMap = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  const handleFocusCharacter = () => {
+    centerOnLocation(selectedLocation.x, selectedLocation.y, Math.max(zoom, 1.4));
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    setIsDragging(true);
+    dragDistanceRef.current = 0;
+    dragStartRef.current = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      startPanX: pan.x,
+      startPanY: pan.y,
+    };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartRef.current.clientX;
+    const dy = e.clientY - dragStartRef.current.clientY;
+    dragDistanceRef.current = Math.hypot(dx, dy);
+
+    const nextX = dragStartRef.current.startPanX + dx;
+    const nextY = dragStartRef.current.startPanY + dy;
+    setPan(clampPan(nextX, nextY, zoom));
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      dragDistanceRef.current = 0;
+      dragStartRef.current = {
+        clientX: e.touches[0].clientX,
+        clientY: e.touches[0].clientY,
+        startPanX: pan.x,
+        startPanY: pan.y,
+      };
+      pinchStartDistRef.current = null;
+    } else if (e.touches.length === 2) {
+      setIsDragging(false);
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      pinchStartDistRef.current = dist;
+      pinchStartZoomRef.current = zoom;
+      dragDistanceRef.current = 20;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1 && isDragging) {
+      const dx = e.touches[0].clientX - dragStartRef.current.clientX;
+      const dy = e.touches[0].clientY - dragStartRef.current.clientY;
+      dragDistanceRef.current = Math.hypot(dx, dy);
+
+      const nextX = dragStartRef.current.startPanX + dx;
+      const nextY = dragStartRef.current.startPanY + dy;
+      setPan(clampPan(nextX, nextY, zoom));
+    } else if (e.touches.length === 2 && pinchStartDistRef.current !== null) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const factor = dist / pinchStartDistRef.current;
+      const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, pinchStartZoomRef.current * factor));
+      setZoom(Math.round(newZoom * 100) / 100);
+      setPan(currentPan => clampPan(currentPan.x, currentPan.y, newZoom));
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (e.touches.length === 0) {
+      setIsDragging(false);
+      pinchStartDistRef.current = null;
+    } else if (e.touches.length === 1) {
+      setIsDragging(true);
+      dragStartRef.current = {
+        clientX: e.touches[0].clientX,
+        clientY: e.touches[0].clientY,
+        startPanX: pan.x,
+        startPanY: pan.y,
+      };
+      pinchStartDistRef.current = null;
+    }
+  };
+
+  // Wheel zoom with passive: false to prevent document scroll when hovering over map
+  useEffect(() => {
+    const container = mapContainerRef.current;
+    if (!container) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY;
+      const factor = delta < 0 ? 0.2 : -0.2;
+      setZoom(prevZoom => {
+        const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round((prevZoom + factor) * 10) / 10));
+        setPan(currentPan => clampPan(currentPan.x, currentPan.y, nextZoom));
+        return nextZoom;
+      });
+    };
+
+    container.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', onWheel);
+    };
+  }, []);
 
   // Sync URL param
   useEffect(() => {
@@ -133,7 +332,10 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
     }
   }
 
-  const allLocationQuests = [...locationDailies, ...locationPackageTasks];
+  const allLocationQuests = sortQuestsByCompletionStatus([
+    ...locationDailies,
+    ...locationPackageTasks,
+  ]);
 
   return (
     <div className="space-y-6">
@@ -202,9 +404,89 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
           {/* Main View Area */}
           {viewMode === 'map' ? (
 
-        <div className="relative rounded-3xl bg-[#0A0D22] border border-slate-700/80 shadow-2xl overflow-hidden p-2 sm:p-4">
-          {/* Top-down SVG Campus Visual */}
-          <div className="relative w-full aspect-[16/10] min-h-[360px] sm:min-h-[480px]">
+        <div
+          ref={mapContainerRef}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          className={`relative rounded-3xl bg-[#0A0D22] border border-slate-700/80 shadow-2xl overflow-hidden p-2 sm:p-4 select-none touch-none ${
+            isDragging ? 'cursor-grabbing' : 'cursor-grab'
+          }`}
+          style={{ touchAction: 'none' }}
+        >
+          {/* Floating Map Controls Widget */}
+          <div className="absolute top-4 right-4 z-30 flex flex-col items-center gap-1.5 bg-[#161B40]/90 backdrop-blur-md p-1.5 rounded-2xl border border-slate-700/80 shadow-xl">
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              disabled={zoom >= MAX_ZOOM}
+              className="p-2 rounded-xl bg-[#0F132E] hover:bg-violet-600/50 active:bg-violet-600 text-slate-200 hover:text-white disabled:opacity-40 disabled:hover:bg-[#0F132E] transition-colors cursor-pointer"
+              title="Phóng to (+)"
+              aria-label="Phóng to bản đồ"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+
+            <div className="text-[10px] font-pixel font-bold text-cyan-300 px-1 select-none">
+              {Math.round(zoom * 100)}%
+            </div>
+
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              disabled={zoom <= MIN_ZOOM}
+              className="p-2 rounded-xl bg-[#0F132E] hover:bg-violet-600/50 active:bg-violet-600 text-slate-200 hover:text-white disabled:opacity-40 disabled:hover:bg-[#0F132E] transition-colors cursor-pointer"
+              title="Thu nhỏ (-)"
+              aria-label="Thu nhỏ bản đồ"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+
+            <div className="w-full h-px bg-slate-700/60 my-0.5" />
+
+            <button
+              type="button"
+              onClick={handleFocusCharacter}
+              className="p-2 rounded-xl bg-[#0F132E] hover:bg-cyan-600/50 active:bg-cyan-600 text-cyan-300 hover:text-white transition-colors cursor-pointer"
+              title="Định vị nhân vật"
+              aria-label="Định vị nhân vật"
+            >
+              <LocateFixed className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={handleResetMap}
+              className="p-2 rounded-xl bg-[#0F132E] hover:bg-slate-700 active:bg-slate-600 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+              title="Đặt lại góc nhìn"
+              aria-label="Đặt lại góc nhìn"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Bottom Hint */}
+          <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 z-30 pointer-events-none">
+            <div className="px-3 py-1.5 rounded-xl bg-[#0F132E]/85 backdrop-blur-md border border-slate-700/60 text-[11px] font-medium text-slate-400 flex items-center gap-1.5 shadow-lg">
+              <Compass className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden sm:inline">Kéo chuột để di chuyển • Cuộn để thu phóng</span>
+              <span className="sm:hidden">Chạm & kéo để di chuyển • Chụm 2 ngón tay thu phóng</span>
+            </div>
+          </div>
+
+          {/* Transformable Canvas Layer containing SVG and Sprite */}
+          <div
+            className="relative w-full aspect-[16/10] min-h-[360px] sm:min-h-[480px] will-change-transform"
+            style={{
+              transform: `translate3d(${pan.x}px, ${pan.y}px, 0px) scale(${zoom})`,
+              transformOrigin: 'center center',
+              transition: isDragging ? 'none' : 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)',
+            }}
+          >
             <svg
               viewBox="0 0 800 480"
               className="w-full h-full select-none"
@@ -267,12 +549,12 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
                   <g
                     key={loc.id}
                     transform={`translate(${loc.x}, ${loc.y})`}
-                    onClick={() => selectLocation(loc.id)}
+                    onClick={() => handleLocationClick(loc.id, loc.x, loc.y)}
                     className="cursor-pointer group"
                     role="button"
                     tabIndex={0}
                     aria-label={`${loc.name}, cấp thân quen ${level}, ${unfinished} nhiệm vụ chưa làm`}
-                    onKeyDown={e => e.key === 'Enter' && selectLocation(loc.id)}
+                    onKeyDown={e => e.key === 'Enter' && handleLocationClick(loc.id, loc.x, loc.y)}
                   >
                     {/* Hotspot Pulse */}
                     {isHot && (
@@ -581,3 +863,5 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
     </div>
   );
 };
+
+export default CampusMapPage;

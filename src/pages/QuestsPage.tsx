@@ -5,8 +5,9 @@ import { selectDailyQuestsStatus, selectPackagesStatus } from '../store/selector
 import { QuestCard } from '../components/game/QuestCard.js';
 import { QuestDetailModal } from '../components/game/QuestDetailModal.js';
 import { Button } from '../components/ui/Button.js';
-import { Search, Filter, SlidersHorizontal, CheckCircle2, Compass, Layers, Check } from 'lucide-react';
+import { Search, Filter, SlidersHorizontal, CheckCircle2, Compass, Layers, Check, Clock } from 'lucide-react';
 import { canAttemptTask, isTaskCompleted } from '../domain/packages.js';
+import { sortQuestsByCompletionStatus } from '../domain/quests.js';
 
 export const QuestsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -204,8 +205,19 @@ export const QuestsPage: React.FC = () => {
       list = list.filter(item => item.difficulty === filterDifficulty);
     }
 
-    return list;
+    // Sort quests deterministically: Incomplete on top, Completed at bottom
+    return sortQuestsByCompletionStatus(list);
   }, [currentTab, dailyStatus, packagesStatus, state, searchQuery, filterCategory, filterDifficulty]);
+
+  // Derived groups for clean UI sectioning and metrics
+  const pendingQuests = useMemo(
+    () => displayedQuests.filter(q => q.status !== 'completed'),
+    [displayedQuests]
+  );
+  const completedQuests = useMemo(
+    () => displayedQuests.filter(q => q.status === 'completed'),
+    [displayedQuests]
+  );
 
   return (
     <div className="space-y-6">
@@ -297,6 +309,25 @@ export const QuestsPage: React.FC = () => {
         </button>
       </div>
 
+      {/* Summary indicator */}
+      {displayedQuests.length > 0 && (
+        <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+              <span>Cần làm: <strong className="text-slate-200">{pendingQuests.length}</strong></span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span>Đã xong: <strong className="text-emerald-300">{completedQuests.length}</strong></span>
+            </span>
+          </div>
+          <span className="text-[11px] text-slate-500 hidden sm:inline font-pixel">
+            Chưa xong ở trên • Đã xong ở dưới
+          </span>
+        </div>
+      )}
+
       {/* Quest Cards Grid */}
       {displayedQuests.length === 0 ? (
         <div className="p-12 text-center rounded-2xl bg-[#161B40]/50 border border-dashed border-slate-700 space-y-3">
@@ -320,69 +351,161 @@ export const QuestsPage: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {displayedQuests.map(q => (
-            <QuestCard
-              key={q.id}
-              id={q.id}
-              name={q.name}
-              description={q.description}
-              category={q.category}
-              difficulty={q.difficulty}
-              xp={q.xp}
-              status={q.status}
-              startedAt={q.startedAt}
-              dueAt={q.dueAt}
-              activeTaskState={q.activeTaskState}
-              isBoss={q.isBoss}
-              lockReason={q.lockReason}
-              onClickDetail={() => setSelectedQuest(q)}
-              onStart={
-                q.status === 'todo'
-                  ? () => dispatch({ type: 'START_TASK', payload: { questId: q.id } })
-                  : undefined
-              }
-              onReplay={
-                q.status === 'completed'
-                  ? () => dispatch({ type: 'START_TASK', payload: { questId: q.id } })
-                  : undefined
-              }
-              onPause={
-                q.status === 'in_progress' && !q.activeTaskState?.isPaused
-                  ? (elapsed) => dispatch({ type: 'PAUSE_TASK', payload: { questId: q.id, elapsedSeconds: elapsed } })
-                  : undefined
-              }
-              onResume={
-                q.status === 'in_progress' && q.activeTaskState?.isPaused
-                  ? () => dispatch({ type: 'RESUME_TASK', payload: { questId: q.id } })
-                  : undefined
-              }
-              onResetTimer={
-                q.status === 'in_progress'
-                  ? () => dispatch({ type: 'RESET_TASK_TIMER', payload: { questId: q.id } })
-                  : undefined
-              }
-              onAbandon={
-                q.status === 'in_progress'
-                  ? () => dispatch({ type: 'ABANDON_TASK', payload: { questId: q.id } })
-                  : undefined
-              }
-              onComplete={
-                q.status === 'todo' || q.status === 'in_progress'
-                  ? () => {
-                      if (q.source === 'daily') {
-                        dispatch({ type: 'COMPLETE_DAILY_QUEST', payload: { questId: q.id } });
-                      } else if (q.packageId) {
-                        dispatch({
-                          type: 'COMPLETE_PACKAGE_TASK',
-                          payload: { packageId: q.packageId, taskId: q.id },
-                        });
-                      }
+        <div className="space-y-6">
+          {/* Section 1: Incomplete / Active Quests */}
+          {pendingQuests.length > 0 && (
+            <div className="space-y-3">
+              {completedQuests.length > 0 && (
+                <div className="flex items-center gap-2 text-xs font-pixel uppercase tracking-wider text-violet-300 px-1">
+                  <Clock className="w-3.5 h-3.5 text-violet-400" />
+                  <span>Nhiệm Vụ Chưa Hoàn Thành ({pendingQuests.length})</span>
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {pendingQuests.map(q => (
+                  <QuestCard
+                    key={q.id}
+                    id={q.id}
+                    name={q.name}
+                    description={q.description}
+                    category={q.category}
+                    difficulty={q.difficulty}
+                    xp={q.xp}
+                    status={q.status}
+                    startedAt={q.startedAt}
+                    dueAt={q.dueAt}
+                    activeTaskState={q.activeTaskState}
+                    isBoss={q.isBoss}
+                    lockReason={q.lockReason}
+                    onClickDetail={() => setSelectedQuest(q)}
+                    onStart={
+                      q.status === 'todo'
+                        ? () => dispatch({ type: 'START_TASK', payload: { questId: q.id } })
+                        : undefined
                     }
-                  : undefined
-              }
-            />
-          ))}
+                    onReplay={
+                      q.status === 'completed'
+                        ? () => dispatch({ type: 'START_TASK', payload: { questId: q.id } })
+                        : undefined
+                    }
+                    onPause={
+                      q.status === 'in_progress' && !q.activeTaskState?.isPaused
+                        ? (elapsed) => dispatch({ type: 'PAUSE_TASK', payload: { questId: q.id, elapsedSeconds: elapsed } })
+                        : undefined
+                    }
+                    onResume={
+                      q.status === 'in_progress' && q.activeTaskState?.isPaused
+                        ? () => dispatch({ type: 'RESUME_TASK', payload: { questId: q.id } })
+                        : undefined
+                    }
+                    onResetTimer={
+                      q.status === 'in_progress'
+                        ? () => dispatch({ type: 'RESET_TASK_TIMER', payload: { questId: q.id } })
+                        : undefined
+                    }
+                    onAbandon={
+                      q.status === 'in_progress'
+                        ? () => dispatch({ type: 'ABANDON_TASK', payload: { questId: q.id } })
+                        : undefined
+                    }
+                    onComplete={
+                      q.status === 'todo' || q.status === 'in_progress'
+                        ? () => {
+                            if (q.source === 'daily') {
+                              dispatch({ type: 'COMPLETE_DAILY_QUEST', payload: { questId: q.id } });
+                            } else if (q.packageId) {
+                              dispatch({
+                                type: 'COMPLETE_PACKAGE_TASK',
+                                payload: { packageId: q.packageId, taskId: q.id },
+                              });
+                            }
+                          }
+                        : undefined
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Section 2: Completed Quests (Always below) */}
+          {completedQuests.length > 0 && (
+            <div className="space-y-3">
+              {pendingQuests.length > 0 && (
+                <div className="pt-4 border-t border-slate-700/60 flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2 text-xs font-pixel uppercase tracking-wider text-emerald-400">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Nhiệm Vụ Đã Xong ({completedQuests.length})</span>
+                  </div>
+                  <span className="text-[11px] text-slate-500 font-pixel">Hoàn thành</span>
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {completedQuests.map(q => (
+                  <QuestCard
+                    key={q.id}
+                    id={q.id}
+                    name={q.name}
+                    description={q.description}
+                    category={q.category}
+                    difficulty={q.difficulty}
+                    xp={q.xp}
+                    status={q.status}
+                    startedAt={q.startedAt}
+                    dueAt={q.dueAt}
+                    activeTaskState={q.activeTaskState}
+                    isBoss={q.isBoss}
+                    lockReason={q.lockReason}
+                    onClickDetail={() => setSelectedQuest(q)}
+                    onStart={
+                      q.status === 'todo'
+                        ? () => dispatch({ type: 'START_TASK', payload: { questId: q.id } })
+                        : undefined
+                    }
+                    onReplay={
+                      q.status === 'completed'
+                        ? () => dispatch({ type: 'START_TASK', payload: { questId: q.id } })
+                        : undefined
+                    }
+                    onPause={
+                      q.status === 'in_progress' && !q.activeTaskState?.isPaused
+                        ? (elapsed) => dispatch({ type: 'PAUSE_TASK', payload: { questId: q.id, elapsedSeconds: elapsed } })
+                        : undefined
+                    }
+                    onResume={
+                      q.status === 'in_progress' && q.activeTaskState?.isPaused
+                        ? () => dispatch({ type: 'RESUME_TASK', payload: { questId: q.id } })
+                        : undefined
+                    }
+                    onResetTimer={
+                      q.status === 'in_progress'
+                        ? () => dispatch({ type: 'RESET_TASK_TIMER', payload: { questId: q.id } })
+                        : undefined
+                    }
+                    onAbandon={
+                      q.status === 'in_progress'
+                        ? () => dispatch({ type: 'ABANDON_TASK', payload: { questId: q.id } })
+                        : undefined
+                    }
+                    onComplete={
+                      q.status === 'todo' || q.status === 'in_progress'
+                        ? () => {
+                            if (q.source === 'daily') {
+                              dispatch({ type: 'COMPLETE_DAILY_QUEST', payload: { questId: q.id } });
+                            } else if (q.packageId) {
+                              dispatch({
+                                type: 'COMPLETE_PACKAGE_TASK',
+                                payload: { packageId: q.packageId, taskId: q.id },
+                              });
+                            }
+                          }
+                        : undefined
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

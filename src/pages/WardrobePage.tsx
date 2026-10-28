@@ -261,10 +261,105 @@ export const WardrobePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Wardrobe Grid (Mobile: sticky preview top, Desktop: side-by-side) */}
+      {/* Mobile Dedicated Character Preview Section (Natural flow, compact, never overlays or traps scroll) */}
+      <div className="block lg:hidden w-full">
+        <Card variant="surface" className="p-3.5 border-cyan-500/30 space-y-2.5">
+          {previewCosmetic && (
+            <div className="w-full py-1.5 px-3 bg-amber-500/20 border border-amber-400/50 text-amber-300 rounded-xl text-xs font-bold font-pixel flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                <span>ĐANG XEM THỬ</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setPreviewCosmetic(null)}
+                className="text-xs text-amber-200 underline font-semibold hover:text-white cursor-pointer"
+              >
+                Hủy xem thử
+              </button>
+            </div>
+          )}
+
+          <div className="flex items-center gap-3">
+            {/* Stationary Character Stage preview - compact for mobile */}
+            <div className="shrink-0 rounded-2xl overflow-hidden border border-cyan-500/40 bg-[#0F132E]">
+              <CharacterStage
+                size="sm"
+                showNameplate={false}
+                characterScaleMultiplier={1.25}
+                previewCosmetics={previewCosmetic ? { [previewCosmetic.slot]: previewCosmetic.id } : undefined}
+              />
+            </div>
+
+            {/* Character Info & Quick Controls */}
+            <div className="flex-1 min-w-0 space-y-1.5">
+              <div>
+                <div className="text-[10px] text-slate-400 font-pixel uppercase">Nhân vật</div>
+                <div className="text-xs sm:text-sm font-bold text-cyan-300 truncate">
+                  {state.customCharacters?.find(c => c.id === activeCharId)?.displayName ||
+                    charactersData.find((c: any) => c.id === activeCharId)?.displayName ||
+                    'Nam Sinh Viên (Quân)'}
+                </div>
+                <div className="text-[11px] text-slate-400 mt-0.5">
+                  Đang mang: <strong className={totalEquippedCount > 0 ? 'text-cyan-400' : 'text-slate-500'}>
+                    {totalEquippedCount > 0 ? `${totalEquippedCount} món` : '0 món (Trống)'}
+                  </strong>
+                </div>
+              </div>
+
+              {/* Action buttons that don't overlap anything */}
+              <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<SlidersHorizontal className="w-3 h-3 text-violet-400" />}
+                  onClick={() => setIsAdjustCharModalOpen(true)}
+                  className="text-[11px] py-1 px-2 h-7"
+                >
+                  Căn chỉnh
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<User className="w-3 h-3" />}
+                  onClick={() => setIsCharModalOpen(true)}
+                  className="text-[11px] py-1 px-2 h-7"
+                >
+                  Đổi GIF
+                </Button>
+
+                {totalEquippedCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dispatch({ type: 'UNEQUIP_EVERYTHING', payload: { characterId: activeCharId } });
+                      setPreviewCosmetic(null);
+                      saveStateToStorageImmediate({
+                        ...state,
+                        equippedGear: {},
+                        equippedCustomGearIds: [],
+                        equippedCosmetics: {},
+                      });
+                      setToastMsg('Đã gỡ sạch toàn bộ trang phục, phụ kiện và sân khấu!');
+                      setTimeout(() => setToastMsg(null), 2500);
+                    }}
+                    className="text-[11px] font-bold text-rose-400 hover:text-rose-300 px-2.5 py-1 rounded-lg bg-rose-950/40 border border-rose-800/50 cursor-pointer ml-auto"
+                    title="Gỡ sạch toàn bộ trang phục đang mang"
+                  >
+                    Gỡ hết
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Main Wardrobe Grid (Desktop: side-by-side sticky column; Mobile: stacked normal scroll) */}
       <div className="flex flex-col lg:flex-row gap-6 items-start">
-        {/* Preview Panel Stage (Sticky on mobile and desktop) */}
-        <div className="w-full lg:w-80 shrink-0 sticky top-20 z-30">
+        {/* Desktop Preview Panel Stage (Hidden on mobile, sticky on desktop) */}
+        <div className="hidden lg:block lg:w-80 shrink-0 sticky top-24 z-10">
           <Card variant="surface" className="p-5 flex flex-col items-center text-center space-y-3 border-cyan-500/30">
             {previewCosmetic && (
               <div className="w-full py-1 px-3 bg-amber-500/20 border border-amber-400/40 text-amber-300 rounded-lg text-xs font-bold font-pixel">

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { getDateKey, getYesterdayKey, getDaysDifference } from './dates.ts';
 import { calculateLevelFromXp, getLevelProgress } from './progression.ts';
 import { calculateStreak } from './streak.ts';
-import { completeDailyQuest, getDailyQuestDedupKey } from './quests.ts';
+import { completeDailyQuest, getDailyQuestDedupKey, sortQuestsByCompletionStatus } from './quests.ts';
 import { completePackageTask, canAttemptTask, isTaskCompleted } from './packages.ts';
 import { calculateCart, calculateComboPrice } from './cart.ts';
 import { evaluateAchievements } from './achievements.ts';
@@ -706,6 +706,44 @@ test('Package task replay allows re-attempt without duplicate XP', () => {
   assert.equal(res.isReplay, true);
   assert.equal(res.addedEntries.length, 0);
   assert.equal(res.notifications[0]?.xpEarned, 0);
+});
+
+test('sortQuestsByCompletionStatus sorts incomplete quests to top and completed to bottom', () => {
+  const mixedQuests = [
+    { id: '1', name: 'Z-Completed Quest', status: 'completed' },
+    { id: '2', name: 'A-Todo Quest', status: 'todo' },
+    { id: '3', name: 'B-In-Progress Quest', status: 'in_progress' },
+    { id: '4', name: 'C-Another Completed', status: 'completed' },
+    { id: '5', name: 'D-Locked Quest', status: 'locked' },
+  ];
+
+  const sorted = sortQuestsByCompletionStatus(mixedQuests);
+
+  // Incomplete quests MUST all be before any completed quests
+  const firstCompletedIdx = sorted.findIndex(q => q.status === 'completed');
+  assert.ok(firstCompletedIdx > 0, 'Completed quests must be after incomplete quests');
+
+  // Verify elements before firstCompletedIdx are NOT completed
+  sorted.slice(0, firstCompletedIdx).forEach(q => {
+    assert.notEqual(q.status, 'completed');
+  });
+
+  // Verify elements starting from firstCompletedIdx ARE completed
+  sorted.slice(firstCompletedIdx).forEach(q => {
+    assert.equal(q.status, 'completed');
+  });
+
+  // Specifically in_progress should be at the very top
+  assert.equal(sorted[0].status, 'in_progress');
+  assert.equal(sorted[0].id, '3');
+
+  // Next is todo
+  assert.equal(sorted[1].status, 'todo');
+  assert.equal(sorted[1].id, '2');
+
+  // Next is locked
+  assert.equal(sorted[2].status, 'locked');
+  assert.equal(sorted[2].id, '5');
 });
 
 
