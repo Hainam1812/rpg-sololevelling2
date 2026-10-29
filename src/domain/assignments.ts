@@ -6,6 +6,7 @@ export interface Assignment {
   description: string; // Mô tả bài tập
   completed: boolean; // Trạng thái hoàn thành
   priority?: 'high' | 'medium' | 'low';
+  isUrgent?: boolean; // Tùy chọn đặt mức hạn Gấp / Quan trọng
   createdAt: string;
   updatedAt?: string;
 }
@@ -21,6 +22,7 @@ export const SAMPLE_ASSIGNMENTS: Assignment[] = [
     description: 'Cài đặt cây nhị phân tìm kiếm BST và cây cân bằng AVL bằng C++. So sánh tốc độ tìm kiếm và chèn 100.000 phần tử ngẫu nhiên. Nộp file zip source code + PDF báo cáo.',
     completed: false,
     priority: 'high',
+    isUrgent: true,
     createdAt: new Date().toISOString(),
   },
   {

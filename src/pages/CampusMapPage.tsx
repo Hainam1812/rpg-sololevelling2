@@ -235,16 +235,32 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
 
   // Wheel zoom with passive: false to prevent document scroll when hovering over map
   useEffect(() => {
+    if (viewMode !== 'map') return;
     const container = mapContainerRef.current;
     if (!container) return;
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const delta = e.deltaY;
-      const factor = delta < 0 ? 0.2 : -0.2;
+      if (delta === 0) return;
+      const zoomDelta = delta < 0 ? 0.25 : -0.25;
+
       setZoom(prevZoom => {
-        const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round((prevZoom + factor) * 10) / 10));
-        setPan(currentPan => clampPan(currentPan.x, currentPan.y, nextZoom));
+        const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round((prevZoom + zoomDelta) * 100) / 100));
+        if (nextZoom === prevZoom) return prevZoom;
+
+        // Natural zoom towards cursor position
+        const rect = container.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left - rect.width / 2;
+        const mouseY = e.clientY - rect.top - rect.height / 2;
+
+        const zoomRatio = nextZoom / prevZoom;
+        setPan(prevPan => {
+          const newPanX = mouseX - (mouseX - prevPan.x) * zoomRatio;
+          const newPanY = mouseY - (mouseY - prevPan.y) * zoomRatio;
+          return clampPan(newPanX, newPanY, nextZoom);
+        });
+
         return nextZoom;
       });
     };
@@ -253,7 +269,7 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
     return () => {
       container.removeEventListener('wheel', onWheel);
     };
-  }, []);
+  }, [viewMode]);
 
   // Sync URL param
   useEffect(() => {
@@ -287,6 +303,68 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
   const selectedLocation =
     CAMPUS_LOCATIONS.find(l => l.id === selectedLocId) || CAMPUS_LOCATIONS[0];
   const selectedMastery = locationsMastery.find(m => m.location.id === selectedLocId);
+
+  // Smooth jump & landing position tracking directly in SVG coordinate space
+  // Fast jump with high arc amplitude
+  const [charPos, setCharPos] = useState<{ x: number; y: number; jumpY: number }>({
+    x: selectedLocation.x,
+    y: selectedLocation.y,
+    jumpY: 0,
+  });
+  const prevLocRef = useRef<{ x: number; y: number }>({
+    x: selectedLocation.x,
+    y: selectedLocation.y,
+  });
+  const animFrameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const targetX = selectedLocation.x;
+    const targetY = selectedLocation.y;
+    const startX = prevLocRef.current.x;
+    const startY = prevLocRef.current.y;
+
+    if (startX === targetX && startY === targetY) {
+      setCharPos({ x: targetX, y: targetY, jumpY: 0 });
+      return;
+    }
+
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+    }
+
+    // Faster leap (210ms) and high amplitude jump arc (-45px)
+    const duration = 210;
+    const startTime = performance.now();
+
+    const animate = (nowTime: number) => {
+      const elapsed = nowTime - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      // Snappy cubic ease out
+      const ease = 1 - Math.pow(1 - progress, 3);
+      // High jump arc mid-flight
+      const jumpArc = Math.sin(progress * Math.PI) * -45;
+
+      const curX = Math.round((startX + (targetX - startX) * ease) * 10) / 10;
+      const curY = Math.round((startY + (targetY - startY) * ease) * 10) / 10;
+
+      setCharPos({ x: curX, y: curY, jumpY: Math.round(jumpArc * 10) / 10 });
+
+      if (progress < 1) {
+        animFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        setCharPos({ x: targetX, y: targetY, jumpY: 0 });
+        prevLocRef.current = { x: targetX, y: targetY };
+      }
+    };
+
+    animFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
+    };
+  }, [selectedLocation.x, selectedLocation.y]);
 
   const dateKey = getDateKey(now);
 
@@ -665,33 +743,41 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
                   </g>
                 );
               })}
-              {/* Character Sprite standing directly at selected location in SVG coordinate space */}
+              {/* Target cell marker ring - solid glowing landing ring without dashed outline at target */}
               <g
                 className="pointer-events-none"
-                style={{
-                  transform: `translate(${selectedLocation.x}px, ${selectedLocation.y}px)`,
-                  transition: 'transform 0.45s cubic-bezier(0.25, 1, 0.5, 1)',
-                }}
+                transform={`translate(${selectedLocation.x}, ${selectedLocation.y})`}
               >
-                {/* Ground shadow beneath character */}
-                <ellipse cx="0" cy="18" rx="16" ry="6" fill="#000000" opacity="0.5" />
-
-                {/* Target cell marker ring */}
                 <circle
                   cx="0"
                   cy="0"
-                  r="30"
-                  fill="none"
+                  r="28"
+                  fill="rgba(6, 182, 212, 0.12)"
                   stroke="#06B6D4"
-                  strokeWidth="2.5"
-                  strokeDasharray="5 3"
-                  className="animate-spin-slow opacity-80"
+                  strokeWidth="2"
+                  className="opacity-90"
+                />
+              </g>
+
+              {/* Character Sprite & ground shadow in SVG coordinate space */}
+              <g
+                className="pointer-events-none"
+                transform={`translate(${charPos.x}, ${charPos.y})`}
+              >
+                {/* Ground shadow beneath character - scales realistically when airborne */}
+                <ellipse
+                  cx="0"
+                  cy="16"
+                  rx={Math.max(8, 16 + charPos.jumpY * 0.12)}
+                  ry={Math.max(2.5, 5 + charPos.jumpY * 0.04)}
+                  fill="#000000"
+                  opacity={charPos.jumpY < -10 ? 0.35 : 0.6}
                 />
 
-                {/* Embedded HTML character sprite positioned exactly above cell */}
+                {/* Embedded HTML character sprite with high amplitude jump arc */}
                 <foreignObject
                   x="-32"
-                  y="-44"
+                  y={-38 + charPos.jumpY}
                   width="64"
                   height="64"
                   className="overflow-visible pointer-events-none"

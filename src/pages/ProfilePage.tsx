@@ -6,6 +6,7 @@ import { Card } from '../components/ui/Card.js';
 import { Button } from '../components/ui/Button.js';
 import { ShareModal } from '../components/share/ShareModal.js';
 import { CharacterSelectModal } from '../components/game/CharacterSelectModal.js';
+import charactersData from '../data/characters.json' with { type: 'json' };
 import { getDateKey, getYesterdayKey, formatVietnameseDate } from '../domain/dates.js';
 import {
   User,
@@ -87,6 +88,18 @@ export const ProfilePage: React.FC = () => {
                 <h1 className="text-2xl sm:text-3xl font-black font-heading text-slate-100">
                   {state.profile.nickname || 'Tân Binh'}
                 </h1>
+                {(() => {
+                  const activeCharId = state.profile.characterId || 'hero';
+                  const charObj = state.customCharacters?.find(c => c.id === activeCharId) ||
+                    charactersData.find((c: any) => c.id === activeCharId);
+                  const desc = charObj?.description || charObj?.tagline;
+                  return (
+                    <p className="text-xs text-slate-400 mt-1 line-clamp-2 max-w-md">
+                      <span className="text-cyan-300 font-semibold">{charObj?.displayName || 'Sinh Viên'}</span>
+                      {desc && <span className="text-slate-400"> — {desc}</span>}
+                    </p>
+                  );
+                })()}
               </div>
 
               <div className="flex items-center justify-center sm:justify-end gap-2">

@@ -83,6 +83,7 @@ export interface CustomCharacterDef {
   id: string;
   displayName: string;
   tagline: string;
+  description?: string; // Mô tả / bio / tiểu sử nhân vật
   idleSrc: string; // Blob URL or path to 2D pixel GIF/PNG
   rewardSrc?: string;
   pixelArt: boolean;

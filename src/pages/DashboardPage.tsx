@@ -17,6 +17,7 @@ import { QuestDetailModal } from '../components/game/QuestDetailModal.js';
 import { Card } from '../components/ui/Card.js';
 import { Button } from '../components/ui/Button.js';
 import { CharacterAdjustModal } from '../components/game/CharacterAdjustModal.js';
+import charactersData from '../data/characters.json' with { type: 'json' };
 import {
   Flame,
   Trophy,
@@ -94,6 +95,18 @@ export const DashboardPage: React.FC = () => {
                 <h1 className="text-2xl sm:text-3xl font-black font-heading text-slate-100 mt-1">
                   {state.profile.nickname || 'Tân Binh'}
                 </h1>
+                {(() => {
+                  const activeCharId = state.profile.characterId || 'hero';
+                  const charObj = state.customCharacters?.find(c => c.id === activeCharId) ||
+                    charactersData.find((c: any) => c.id === activeCharId);
+                  const desc = charObj?.description || charObj?.tagline;
+                  return (
+                    <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">
+                      <span className="text-cyan-300 font-semibold">{charObj?.displayName || 'Sinh Viên'}</span>
+                      {desc && <span className="text-slate-400"> • {desc}</span>}
+                    </p>
+                  );
+                })()}
               </div>
 
               {/* Streak Badge */}

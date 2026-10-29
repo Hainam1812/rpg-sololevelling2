@@ -300,6 +300,16 @@ export const WardrobePage: React.FC = () => {
                     charactersData.find((c: any) => c.id === activeCharId)?.displayName ||
                     'Nam Sinh Viên (Quân)'}
                 </div>
+                {(() => {
+                  const charObj = state.customCharacters?.find(c => c.id === activeCharId) ||
+                    charactersData.find((c: any) => c.id === activeCharId);
+                  const desc = charObj?.description || charObj?.tagline;
+                  return desc ? (
+                    <div className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
+                      {desc}
+                    </div>
+                  ) : null;
+                })()}
                 <div className="text-[11px] text-slate-400 mt-0.5">
                   Đang mang: <strong className={totalEquippedCount > 0 ? 'text-cyan-400' : 'text-slate-500'}>
                     {totalEquippedCount > 0 ? `${totalEquippedCount} món` : '0 món (Trống)'}
@@ -375,13 +385,23 @@ export const WardrobePage: React.FC = () => {
             />
 
             <div className="w-full flex items-center justify-between pt-2 border-t border-slate-700/60 flex-wrap gap-2">
-              <div className="text-left">
+              <div className="text-left flex-1 min-w-0 pr-2">
                 <div className="text-[10px] text-slate-400 font-pixel uppercase">Nhân vật hiện tại</div>
-                <div className="text-xs font-bold text-cyan-300">
+                <div className="text-xs font-bold text-cyan-300 truncate">
                   {state.customCharacters?.find(c => c.id === activeCharId)?.displayName ||
                     charactersData.find((c: any) => c.id === activeCharId)?.displayName ||
                     'Nam Sinh Viên (Quân)'}
                 </div>
+                {(() => {
+                  const charObj = state.customCharacters?.find(c => c.id === activeCharId) ||
+                    charactersData.find((c: any) => c.id === activeCharId);
+                  const desc = charObj?.description || charObj?.tagline;
+                  return desc ? (
+                    <div className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
+                      {desc}
+                    </div>
+                  ) : null;
+                })()}
               </div>
 
               <div className="flex items-center gap-1.5">

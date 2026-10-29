@@ -20,15 +20,23 @@ export const Modal: React.FC<ModalProps> = ({
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (isOpen) {
       previouslyFocusedRef.current = document.activeElement as HTMLElement;
-      modalRef.current?.focus();
+
+      // Only set focus to modal container on initial open if nothing inside has focus yet
+      const timer = setTimeout(() => {
+        if (modalRef.current && !modalRef.current.contains(document.activeElement)) {
+          modalRef.current.focus();
+        }
+      }, 50);
 
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
-          onClose();
+          onCloseRef.current();
         }
       };
 
@@ -36,12 +44,13 @@ export const Modal: React.FC<ModalProps> = ({
       document.body.style.overflow = 'hidden';
 
       return () => {
+        clearTimeout(timer);
         window.removeEventListener('keydown', handleKeyDown);
         document.body.style.overflow = 'unset';
         previouslyFocusedRef.current?.focus();
       };
     }
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

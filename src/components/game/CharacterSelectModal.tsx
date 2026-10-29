@@ -33,6 +33,7 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
   const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null);
   const [charName, setCharName] = useState('');
   const [charTagline, setCharTagline] = useState('');
+  const [charDescription, setCharDescription] = useState('');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [charToDelete, setCharToDelete] = useState<{ id: string; displayName: string } | null>(null);
 
@@ -80,6 +81,7 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
       id: newId,
       displayName: nameVal.cleanName,
       tagline: charTagline.trim() || 'Sinh viên 2D Pixel',
+      description: charDescription.trim() || charTagline.trim() || 'Nhân vật 2D Pixel tự tải lên',
       idleSrc: uploadPreviewUrl || '',
       pixelArt: true,
       createdAt: new Date().toISOString(),
@@ -96,6 +98,7 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
     setUploadPreviewUrl(null);
     setCharName('');
     setCharTagline('');
+    setCharDescription('');
   };
 
   const handleConfirm = () => {
@@ -292,13 +295,24 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
                     maxLength={40}
                     className="w-full px-3 py-1.5 rounded-lg bg-[#161B40] border border-slate-700 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-400"
                   />
+                  <textarea
+                    value={charDescription}
+                    onChange={e => setCharDescription(e.target.value)}
+                    placeholder="Mô tả / Tiểu sử nhân vật (VD: Chiến binh IT cày deadline, thích uống cà phê...)"
+                    rows={2}
+                    maxLength={140}
+                    className="w-full px-3 py-1.5 rounded-lg bg-[#161B40] border border-slate-700 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-400 resize-none"
+                  />
                 </div>
               </div>
 
               {uploadError && <p className="text-xs text-rose-400">{uploadError}</p>}
 
               <div className="flex justify-end gap-2 pt-1">
-                <Button size="sm" variant="secondary" onClick={() => setIsUploading(false)}>
+                <Button size="sm" variant="secondary" onClick={() => {
+                  setIsUploading(false);
+                  setCharDescription('');
+                }}>
                   Hủy
                 </Button>
                 <Button size="sm" variant="cyan" onClick={handleSaveCustomChar}>
@@ -341,9 +355,14 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
                   <div className="font-bold text-sm text-slate-100 mt-1 font-heading">
                     {char.displayName}
                   </div>
-                  <div className="text-[11px] text-violet-300 line-clamp-1 mt-0.5">
+                  <div className="text-[11px] text-violet-300 font-medium line-clamp-1 mt-0.5">
                     {char.tagline || 'Chiến binh sinh viên'}
                   </div>
+                  {char.description && (
+                    <p className="text-[10px] text-slate-400 line-clamp-2 mt-1 px-1 leading-tight">
+                      {char.description}
+                    </p>
+                  )}
 
                   {isSelected && (
                     <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-violet-600 flex items-center justify-center text-white shadow-md">
@@ -397,9 +416,14 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({
                   <div className="font-bold text-sm text-cyan-300 mt-1 font-heading">
                     {char.displayName}
                   </div>
-                  <div className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
+                  <div className="text-[11px] text-cyan-400/80 font-medium line-clamp-1 mt-0.5">
                     {char.tagline || 'Nhân vật tải lên'}
                   </div>
+                  {(char.description || char.tagline) && (
+                    <p className="text-[10px] text-slate-400 line-clamp-2 mt-1 px-1 leading-tight">
+                      {char.description || char.tagline}
+                    </p>
+                  )}
 
                   {isSelected && (
                     <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-cyan-600 flex items-center justify-center text-white shadow-md">

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useGame } from '../../store/GameContext.js';
 import {
   Assignment,
@@ -62,6 +62,7 @@ export const AssignmentManager: React.FC<AssignmentManagerProps> = ({
   const [formDeadline, setFormDeadline] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formCompleted, setFormCompleted] = useState(false);
+  const [formIsUrgent, setFormIsUrgent] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   // Delete confirmation modal state
@@ -84,79 +85,95 @@ export const AssignmentManager: React.FC<AssignmentManagerProps> = ({
     return Array.from(set);
   }, [timetableCourses, assignments]);
 
+  // Stable modal close
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
+    setFormError(null);
+  }, []);
+
   // Open modal for new assignment
-  const handleOpenCreateModal = (presetSubject?: string) => {
+  const handleOpenCreateModal = useCallback((presetSubject?: string) => {
     setEditingAssignment(null);
     setFormTitle('');
-    setFormSubject(presetSubject || (availableSubjects[0] ? availableSubjects[0] : ''));
+    setFormSubject(presetSubject || '');
     // Default deadline: tomorrow at 23:59
-    const defaultDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const defaultDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
     const dateStr = defaultDate.toISOString().slice(0, 10);
     setFormDeadline(`${dateStr}T23:59`);
     setFormDescription('');
     setFormCompleted(false);
+    setFormIsUrgent(false);
     setFormError(null);
     setIsModalOpen(true);
-  };
+  }, []);
 
   // Open modal for editing
-  const handleOpenEditModal = (assignment: Assignment) => {
+  const handleOpenEditModal = useCallback((assignment: Assignment) => {
     setEditingAssignment(assignment);
-    setFormTitle(assignment.title);
-    setFormSubject(assignment.subject);
+    setFormTitle(assignment.title || '');
+    setFormSubject(assignment.subject || '');
     setFormDeadline(assignment.deadline || '');
     setFormDescription(assignment.description || '');
-    setFormCompleted(assignment.completed);
+    setFormCompleted(Boolean(assignment.completed));
+    setFormIsUrgent(Boolean(assignment.isUrgent || assignment.priority === 'high'));
     setFormError(null);
     setIsModalOpen(true);
-  };
+  }, []);
 
   // Save (Create or Update)
   const handleSubmitForm = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formTitle.trim()) {
+    const cleanTitle = formTitle.trim();
+    if (!cleanTitle) {
       setFormError('Vui lòng nhập tên bài tập.');
       return;
     }
-    if (!formSubject.trim()) {
-      setFormError('Vui lòng nhập môn học cho bài tập.');
-      return;
-    }
-    if (!formDeadline.trim()) {
-      setFormError('Vui lòng chọn thời gian / hạn nộp deadline.');
-      return;
-    }
 
-    if (editingAssignment) {
-      dispatch({
-        type: 'UPDATE_ASSIGNMENT',
-        payload: {
-          assignment: {
-            ...editingAssignment,
-            title: formTitle.trim(),
-            subject: formSubject.trim(),
-            deadline: formDeadline.trim(),
-            description: formDescription.trim(),
-            completed: formCompleted,
-          },
-        },
-      });
-    } else {
-      dispatch({
-        type: 'ADD_ASSIGNMENT',
-        payload: {
-          assignment: {
-            title: formTitle.trim(),
-            subject: formSubject.trim(),
-            deadline: formDeadline.trim(),
-            description: formDescription.trim(),
-            completed: formCompleted,
-          },
-        },
-      });
-    }
+    const cleanSubject = formSubject.trim() || 'Chung';
+    const cleanDeadline =
+      formDeadline.trim() ||
+      new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
 
-    setIsModalOpen(false);
+    try {
+      if (editingAssignment) {
+        dispatch({
+          type: 'UPDATE_ASSIGNMENT',
+          payload: {
+            assignment: {
+              ...editingAssignment,
+              title: cleanTitle,
+              subject: cleanSubject,
+              deadline: cleanDeadline,
+              description: formDescription.trim(),
+              completed: formCompleted,
+              isUrgent: formIsUrgent,
+              priority: formIsUrgent ? 'high' : 'medium',
+            },
+          },
+        });
+      } else {
+        dispatch({
+          type: 'ADD_ASSIGNMENT',
+          payload: {
+            assignment: {
+              title: cleanTitle,
+              subject: cleanSubject,
+              deadline: cleanDeadline,
+              description: formDescription.trim(),
+              completed: formCompleted,
+              isUrgent: formIsUrgent,
+              priority: formIsUrgent ? 'high' : 'medium',
+            },
+          },
+        });
+      }
+
+      setIsModalOpen(false);
+      setFormError(null);
+    } catch (err: any) {
+      console.error('Lỗi khi lưu bài tập:', err);
+      setFormError('Có lỗi xảy ra khi lưu bài tập. Vui lòng thử lại.');
+    }
   };
 
   // Toggle completion
@@ -178,7 +195,7 @@ export const AssignmentManager: React.FC<AssignmentManagerProps> = ({
 
   // Filtered & Sorted assignments
   const filteredAssignments = useMemo(() => {
-    return assignments.filter(item => {
+    const list = assignments.filter(item => {
       // Query search
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -202,11 +219,27 @@ export const AssignmentManager: React.FC<AssignmentManagerProps> = ({
       }
       if (statusFilter === 'due_soon') {
         if (item.completed) return false;
+        if (item.isUrgent || item.priority === 'high') return true;
         const dInfo = formatDeadlineDisplay(item.deadline, now);
         return dInfo.status === 'today' || dInfo.status === 'soon' || dInfo.status === 'overdue';
       }
 
       return true;
+    });
+
+    // Sort: Incomplete Urgent first, then Incomplete by deadline, then Completed
+    return [...list].sort((a, b) => {
+      if (a.completed !== b.completed) {
+        return a.completed ? 1 : -1;
+      }
+      const aUrgent = Boolean(a.isUrgent || a.priority === 'high');
+      const bUrgent = Boolean(b.isUrgent || b.priority === 'high');
+      if (aUrgent !== bUrgent) {
+        return aUrgent ? -1 : 1;
+      }
+      const timeA = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+      const timeB = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+      return timeA - timeB;
     });
   }, [assignments, searchQuery, statusFilter, selectedSubjectFilter, now]);
 
@@ -216,6 +249,7 @@ export const AssignmentManager: React.FC<AssignmentManagerProps> = ({
   const pendingCount = totalCount - completedCount;
   const urgentCount = assignments.filter(a => {
     if (a.completed) return false;
+    if (a.isUrgent || a.priority === 'high') return true;
     const dInfo = formatDeadlineDisplay(a.deadline, now);
     return dInfo.status === 'today' || dInfo.status === 'soon' || dInfo.status === 'overdue';
   }).length;
@@ -446,12 +480,16 @@ export const AssignmentManager: React.FC<AssignmentManagerProps> = ({
                 badgeColor = 'bg-amber-950/80 text-amber-300 border-amber-500/40';
               }
 
+              const isUrgent = Boolean(assignment.isUrgent || assignment.priority === 'high');
+
               return (
                 <div
                   key={assignment.id}
                   className={`p-3.5 sm:p-4 rounded-2xl border transition-all duration-200 flex flex-col gap-3 ${
                     assignment.completed
                       ? 'bg-[#0E122B]/80 border-slate-800 opacity-80'
+                      : isUrgent
+                      ? 'bg-gradient-to-r from-rose-950/35 via-[#14183E] to-[#0F132E] border-rose-500/60 hover:border-rose-400 shadow-lg shadow-rose-950/30'
                       : deadlineInfo.status === 'overdue'
                       ? 'bg-gradient-to-r from-rose-950/20 via-[#121638] to-[#0F132E] border-rose-900/60 hover:border-rose-700/80 shadow-md'
                       : deadlineInfo.status === 'today'
@@ -483,6 +521,12 @@ export const AssignmentManager: React.FC<AssignmentManagerProps> = ({
                           <span className="font-pixel text-[10px] font-bold px-2 py-0.5 rounded-md bg-cyan-950/90 text-cyan-300 border border-cyan-500/30 shrink-0">
                             {assignment.subject}
                           </span>
+                          {isUrgent && (
+                            <span className="px-2 py-0.5 rounded-md bg-rose-950/90 border border-rose-500/70 text-rose-300 text-[10px] font-bold font-pixel flex items-center gap-1 shadow-sm shrink-0">
+                              <Flame className="w-3 h-3 text-rose-400 fill-rose-500 animate-pulse" />
+                              <span>GẤP</span>
+                            </span>
+                          )}
                           <span className="text-[10px] font-pixel text-slate-500">
                             #{index + 1}
                           </span>
@@ -576,55 +620,45 @@ export const AssignmentManager: React.FC<AssignmentManagerProps> = ({
       {/* Add / Edit Assignment Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={handleCloseModal}
         title={editingAssignment ? 'Chỉnh Sửa Bài Tập' : 'Thêm Bài Tập Mới'}
         maxWidth="md"
       >
         <form onSubmit={handleSubmitForm} className="space-y-4">
           <div className="space-y-3.5">
             {/* Tên bài tập */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-200 flex items-center justify-between">
-                <span>
-                  Tên Bài Tập <span className="text-rose-400">*</span>
-                </span>
-                <span className="text-[10px] text-slate-500 font-pixel">Bắt buộc</span>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-200">
+                Tên bài tập <span className="text-rose-400">*</span>
               </label>
               <input
                 type="text"
                 value={formTitle}
                 onChange={e => setFormTitle(e.target.value)}
-                placeholder="VD: Báo cáo Lab 3 Cấu Trúc Dữ Liệu"
+                placeholder="Tên bài tập..."
                 maxLength={100}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-[#0F132E] border border-slate-700 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-400 transition-colors"
-                autoFocus
               />
             </div>
 
             {/* Môn học */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-200 flex items-center justify-between">
-                <span>
-                  Môn Học <span className="text-rose-400">*</span>
-                </span>
-                <span className="text-[10px] text-slate-400 font-pixel">
-                  Chọn từ TKB hoặc gõ tự do
-                </span>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-200">
+                Môn học <span className="text-rose-400">*</span>
               </label>
               <div className="space-y-1.5">
                 <input
                   type="text"
                   value={formSubject}
                   onChange={e => setFormSubject(e.target.value)}
-                  placeholder="VD: Cấu Trúc Dữ Liệu & Giải Thuật (CS101)"
+                  placeholder="Môn học..."
                   maxLength={60}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#0F132E] border border-slate-700 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-400 transition-colors"
                 />
 
                 {/* Quick suggestions from timetable */}
                 {availableSubjects.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-[11px] text-slate-400">Gợi ý từ TKB:</span>
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                     {availableSubjects.slice(0, 4).map(subj => (
                       <button
                         key={subj}
@@ -645,14 +679,9 @@ export const AssignmentManager: React.FC<AssignmentManagerProps> = ({
             </div>
 
             {/* Thời gian / Deadline */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-200 flex items-center justify-between">
-                <span>
-                  Thời Gian / Hạn Chót (Deadline) <span className="text-rose-400">*</span>
-                </span>
-                <span className="text-[10px] text-cyan-400 font-pixel">
-                  Ngày & Giờ nộp bài
-                </span>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-200">
+                Hạn chót (Deadline) <span className="text-rose-400">*</span>
               </label>
               <input
                 type="datetime-local"
@@ -663,30 +692,43 @@ export const AssignmentManager: React.FC<AssignmentManagerProps> = ({
             </div>
 
             {/* Mô tả bài tập */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-200 flex items-center justify-between">
-                <span>Mô Tả Bài Tập / Yêu Cầu Nộp</span>
-                <span className="text-[10px] text-slate-500 font-pixel">Chi tiết</span>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-200">
+                Mô tả bài tập
               </label>
               <textarea
                 value={formDescription}
                 onChange={e => setFormDescription(e.target.value)}
-                placeholder="Ghi chú chi tiết yêu cầu, link tài liệu, file cần nộp, lưu ý từ giảng viên..."
+                placeholder="Ghi chú thêm về yêu cầu nộp bài (tùy chọn)..."
                 rows={3}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-[#0F132E] border border-slate-700 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-400 resize-none transition-colors"
               />
             </div>
 
-            {/* Trạng thái hoàn thành toggle */}
+            {/* Tuỳ chọn Gấp / Quan trọng (Optional) */}
             <label className="flex items-center gap-2.5 pt-1 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={formIsUrgent}
+                onChange={e => setFormIsUrgent(e.target.checked)}
+                className="w-4 h-4 rounded text-rose-500 bg-[#0F132E] border-slate-700 focus:ring-rose-500 focus:ring-offset-0 cursor-pointer"
+              />
+              <span className="text-xs text-rose-300 font-semibold flex items-center gap-1.5">
+                <Flame className="w-3.5 h-3.5 text-rose-400" />
+                <span>Quan trọng / Gấp</span>
+              </span>
+            </label>
+
+            {/* Trạng thái hoàn thành toggle */}
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={formCompleted}
                 onChange={e => setFormCompleted(e.target.checked)}
-                className="w-4 h-4 rounded text-cyan-600 bg-[#0F132E] border-slate-700 focus:ring-cyan-500 focus:ring-offset-0"
+                className="w-4 h-4 rounded text-cyan-600 bg-[#0F132E] border-slate-700 focus:ring-cyan-500 focus:ring-offset-0 cursor-pointer"
               />
               <span className="text-xs text-slate-300">
-                Đánh dấu bài tập này là <strong className="text-emerald-400">Đã hoàn thành</strong>
+                Đã hoàn thành
               </span>
             </label>
           </div>

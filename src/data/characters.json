@@ -3,6 +3,7 @@
     "id": "hero",
     "displayName": "Nam Sinh Viên (Quân)",
     "tagline": "Nam sinh viên năng động, quyết tâm cày deadline và đạt GPA xuất sắc",
+    "description": "Chiến binh sinh viên luôn sẵn sàng đối đầu mọi bài tập hóc búa, cày cuốc thâu đêm để giữ vững streak học tập.",
     "idle": {
       "src": "assets/char/hero/main.gif",
       "width": 240,
@@ -25,6 +26,7 @@
     "id": "scholar",
     "displayName": "Nữ Sinh Viên (Mai)",
     "tagline": "Nữ sinh viên chăm chỉ, làm chủ giảng đường, đồ án và các kỳ thi",
+    "description": "Thủ khoa gương mẫu, quản lý thời khóa biểu khoa học, chinh phục điểm A mọi kỳ thi đại học.",
     "idle": {
       "src": "assets/char/scholar/main.gif",
       "width": 240,

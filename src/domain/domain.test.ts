@@ -895,4 +895,72 @@ test('Assignments: Reducer actions and RESET_DATA preservation', () => {
   assert.equal(deletedState.assignments?.length, 0);
 });
 
+test('Character creation: CustomCharacterDef supports description and persists through state', () => {
+  const state = createMockState();
+
+  const customChar = {
+    id: 'char-test-bio',
+    displayName: 'Thợ Săn IT',
+    tagline: 'Cày đề án thâu đêm',
+    description: 'Sinh viên năm 3 ngành Khoa Học Máy Tính, chuyên gia debug lúc 3 giờ sáng.',
+    idleSrc: 'blob:mock-idle',
+    pixelArt: true,
+    createdAt: new Date().toISOString(),
+  };
+
+  const { state: stateWithChar } = gameReducer(state, {
+    type: 'ADD_CUSTOM_CHARACTER',
+    payload: { character: customChar },
+  });
+
+  assert.equal(stateWithChar.customCharacters?.length, 1);
+  assert.equal(stateWithChar.customCharacters?.[0].description, customChar.description);
+  assert.equal(stateWithChar.customCharacters?.[0].displayName, 'Thợ Săn IT');
+
+  // Verify RESET_DATA preserves custom characters and their description
+  const { state: afterReset } = gameReducer(stateWithChar, { type: 'RESET_DATA' });
+  assert.equal(afterReset.customCharacters?.length, 1);
+  assert.equal(afterReset.customCharacters?.[0].description, customChar.description);
+});
+
+test('Assignments: isUrgent flag is optional, persists on create and update', () => {
+  let list: Assignment[] = [];
+
+  // Add non-urgent assignment (default/optional)
+  list = addAssignment(list, {
+    title: 'Đọc tài liệu tuần 5',
+    subject: 'Toán Rời Rạc',
+    deadline: '2026-11-20T23:59',
+    description: 'Đọc chương 3',
+    completed: false,
+    isUrgent: false,
+  });
+  assert.equal(list[0].isUrgent, false);
+
+  // Add urgent assignment
+  list = addAssignment(list, {
+    id: 'asg-urgent-1',
+    title: 'Nộp báo cáo đồ án giữa kỳ',
+    subject: 'Trí Tuệ Nhân Tạo',
+    deadline: '2026-11-05T12:00',
+    description: 'Báo cáo 20 trang kèm mã nguồn',
+    completed: false,
+    isUrgent: true,
+    priority: 'high',
+  });
+  assert.equal(list.length, 2);
+  const urgentItem = list.find(a => a.id === 'asg-urgent-1');
+  assert.equal(urgentItem?.isUrgent, true);
+  assert.equal(urgentItem?.priority, 'high');
+
+  // Update assignment to turn off isUrgent
+  list = updateAssignment(list, {
+    ...urgentItem!,
+    isUrgent: false,
+    priority: 'medium',
+  });
+  const updatedItem = list.find(a => a.id === 'asg-urgent-1');
+  assert.equal(updatedItem?.isUrgent, false);
+});
+
 
