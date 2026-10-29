@@ -28,12 +28,14 @@ import {
   Maximize2,
   LocateFixed,
   RotateCcw,
+  ClipboardList,
 } from 'lucide-react';
 import { TimeTableBuilder } from '../components/game/TimeTableBuilder.js';
+import { AssignmentManager } from '../components/game/AssignmentManager.js';
 
 
 interface CampusMapPageProps {
-  defaultView?: 'map' | 'list' | 'timetable';
+  defaultView?: 'map' | 'list' | 'assignments' | 'timetable';
 }
 
 export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => {
@@ -42,9 +44,11 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
 
   const urlLocId = searchParams.get('loc');
   const urlView = searchParams.get('tab') || searchParams.get('view');
-  const initialView: 'map' | 'list' | 'timetable' =
+  const initialView: 'map' | 'list' | 'assignments' | 'timetable' =
     urlView === 'timetable'
       ? 'timetable'
+      : urlView === 'assignments'
+      ? 'assignments'
       : urlView === 'list'
       ? 'list'
       : urlView === 'map'
@@ -54,7 +58,7 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
   const [selectedLocId, setSelectedLocId] = useState<string>(
     urlLocId || state.lastLocationId || 'classroom'
   );
-  const [viewMode, setViewMode] = useState<'map' | 'list' | 'timetable'>(initialView);
+  const [viewMode, setViewMode] = useState<'map' | 'list' | 'assignments' | 'timetable'>(initialView);
   const [selectedQuest, setSelectedQuest] = useState<any | null>(null);
 
   // Map Zoom & Pan State & Controls
@@ -259,8 +263,8 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
   }, [urlLocId]);
 
   useEffect(() => {
-    if (urlView && (urlView === 'map' || urlView === 'list' || urlView === 'timetable')) {
-      setViewMode(urlView);
+    if (urlView && (urlView === 'map' || urlView === 'list' || urlView === 'assignments' || urlView === 'timetable')) {
+      setViewMode(urlView as 'map' | 'list' | 'assignments' | 'timetable');
     }
   }, [urlView]);
 
@@ -271,7 +275,7 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
     dispatch({ type: 'SET_LAST_LOCATION', payload: { locationId: locId } });
   };
 
-  const handleSetViewMode = (mode: 'map' | 'list' | 'timetable') => {
+  const handleSetViewMode = (mode: 'map' | 'list' | 'assignments' | 'timetable') => {
     setViewMode(mode);
     searchParams.set('view', mode);
     setSearchParams(searchParams);
@@ -348,6 +352,11 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
                 <Calendar className="w-6 h-6 text-cyan-400" />
                 <span>Thời Khóa Biểu Campus (TimeTable Builder)</span>
               </>
+            ) : viewMode === 'assignments' ? (
+              <>
+                <ClipboardList className="w-6 h-6 text-cyan-400" />
+                <span>Quản Lý Bài Tập & Deadline (Assignments)</span>
+              </>
             ) : (
               <>
                 <MapIcon className="w-6 h-6 text-cyan-400" />
@@ -358,11 +367,13 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
             {viewMode === 'timetable'
               ? 'Lập kế hoạch lịch học 12 tiết trong tuần, tự động gộp khối tiết và lưu trữ an toàn'
+              : viewMode === 'assignments'
+              ? 'Theo dõi, thêm mới, sửa, xóa và quản lý bài tập theo thứ tự hạn chót deadline từ sớm đến muộn'
               : 'Khám phá 9 địa điểm rèn luyện, cày nhiệm vụ và nâng cao độ thân quen khuôn viên trường'}
           </p>
         </div>
 
-        {/* View Mode Toggle: Map / List / Timetable */}
+        {/* View Mode Toggle: Map / List / Quản Lý Bài Tập / Timetable */}
         <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#161B40] border border-slate-700/60 self-stretch sm:self-auto overflow-x-auto">
           <button
             type="button"
@@ -386,9 +397,19 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
           </button>
           <button
             type="button"
+            onClick={() => handleSetViewMode('assignments')}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              viewMode === 'assignments' ? 'bg-cyan-600 text-white shadow' : 'text-cyan-400 hover:text-cyan-200 hover:bg-cyan-950/30'
+            }`}
+          >
+            <ClipboardList className="w-3.5 h-3.5" />
+            <span>Quản Lý Bài Tập</span>
+          </button>
+          <button
+            type="button"
             onClick={() => handleSetViewMode('timetable')}
             className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-              viewMode === 'timetable' ? 'bg-cyan-600 text-white shadow' : 'text-cyan-400 hover:text-cyan-200 hover:bg-cyan-950/30'
+              viewMode === 'timetable' ? 'bg-cyan-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <Calendar className="w-3.5 h-3.5" />
@@ -397,8 +418,13 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
         </div>
       </div>
 
-      {viewMode === 'timetable' ? (
-        <TimeTableBuilder onGoToMap={() => handleSetViewMode('map')} />
+      {viewMode === 'assignments' ? (
+        <AssignmentManager onGoToTimetable={() => handleSetViewMode('timetable')} />
+      ) : viewMode === 'timetable' ? (
+        <TimeTableBuilder
+          onGoToMap={() => handleSetViewMode('map')}
+          onGoToAssignments={() => handleSetViewMode('assignments')}
+        />
       ) : (
         <>
           {/* Main View Area */}
@@ -480,7 +506,7 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
 
           {/* Transformable Canvas Layer containing SVG and Sprite */}
           <div
-            className="relative w-full aspect-[16/10] min-h-[360px] sm:min-h-[480px] will-change-transform"
+            className="relative w-full aspect-[800/480] will-change-transform"
             style={{
               transform: `translate3d(${pan.x}px, ${pan.y}px, 0px) scale(${zoom})`,
               transformOrigin: 'center center',
@@ -639,20 +665,43 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
                   </g>
                 );
               })}
-            </svg>
+              {/* Character Sprite standing directly at selected location in SVG coordinate space */}
+              <g
+                className="pointer-events-none"
+                style={{
+                  transform: `translate(${selectedLocation.x}px, ${selectedLocation.y}px)`,
+                  transition: 'transform 0.45s cubic-bezier(0.25, 1, 0.5, 1)',
+                }}
+              >
+                {/* Ground shadow beneath character */}
+                <ellipse cx="0" cy="18" rx="16" ry="6" fill="#000000" opacity="0.5" />
 
-            {/* Character Sprite standing at selected location with 0.8s CSS transition! */}
-            <div
-              className="absolute pointer-events-none transition-all duration-700 ease-out z-20 flex items-center justify-center -translate-x-1/2 -translate-y-1/2"
-              style={{
-                left: `${(selectedLocation.x / 800) * 100}%`,
-                top: `${(selectedLocation.y / 480) * 100}%`,
-              }}
-            >
-              <div className="w-14 h-14 sm:w-16 sm:h-16 drop-shadow-[0_8px_12px_rgba(0,0,0,0.8)] animate-bounce">
-                <CharacterSprite characterId={state.profile.characterId} scale={0.7} />
-              </div>
-            </div>
+                {/* Target cell marker ring */}
+                <circle
+                  cx="0"
+                  cy="0"
+                  r="30"
+                  fill="none"
+                  stroke="#06B6D4"
+                  strokeWidth="2.5"
+                  strokeDasharray="5 3"
+                  className="animate-spin-slow opacity-80"
+                />
+
+                {/* Embedded HTML character sprite positioned exactly above cell */}
+                <foreignObject
+                  x="-32"
+                  y="-44"
+                  width="64"
+                  height="64"
+                  className="overflow-visible pointer-events-none"
+                >
+                  <div className="w-full h-full flex items-center justify-center filter drop-shadow-[0_6px_10px_rgba(0,0,0,0.8)] animate-gentle-bob">
+                    <CharacterSprite characterId={state.profile.characterId} scale={0.7} />
+                  </div>
+                </foreignObject>
+              </g>
+            </svg>
           </div>
         </div>
       ) : (

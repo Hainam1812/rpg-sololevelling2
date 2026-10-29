@@ -29,13 +29,19 @@ import {
   ChevronDown,
   CalendarDays,
   Coffee,
+  ClipboardList,
 } from 'lucide-react';
+import { AssignmentManager } from './AssignmentManager.js';
 
 interface TimeTableBuilderProps {
   onGoToMap?: () => void;
+  onGoToAssignments?: () => void;
 }
 
-export const TimeTableBuilder: React.FC<TimeTableBuilderProps> = () => {
+export const TimeTableBuilder: React.FC<TimeTableBuilderProps> = ({
+  onGoToMap,
+  onGoToAssignments,
+}) => {
   const { state, dispatch } = useGame();
   const timetable = state.timetable || [];
 
@@ -203,6 +209,22 @@ export const TimeTableBuilder: React.FC<TimeTableBuilderProps> = () => {
             <Plus className="w-4 h-4" />
             <span>Thêm Môn Học</span>
           </Button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (onGoToAssignments) {
+                onGoToAssignments();
+              } else {
+                document.getElementById('assignments-section')?.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0F132E] hover:bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 text-xs font-bold transition-colors cursor-pointer"
+            title="Cuộn xuống khu vực quản lý bài tập môn học"
+          >
+            <ClipboardList className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Bài Tập & Deadline ({state.assignments?.length || 0})</span>
+          </button>
 
           {timetable.length === 0 ? (
             <Button
@@ -706,6 +728,11 @@ export const TimeTableBuilder: React.FC<TimeTableBuilderProps> = () => {
           </div>
         </div>
       )}
+
+      {/* Assignment Management Module - Situated directly between Timetable and Course List */}
+      <div id="assignments-section" className="scroll-mt-6">
+        <AssignmentManager />
+      </div>
 
       {/* Course List & Stats */}
       <Card variant="surface" className="p-5 space-y-4">

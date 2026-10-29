@@ -11,6 +11,15 @@ import { evaluateAchievements } from './achievements.ts';
 import { gradeExamSession, calculateExamHearts, deleteExamSchedule } from './exams.ts';
 import { validateCharacterName, sanitizeCharacterInput } from './character.ts';
 import { addCourse, removeCourse, generateCourseCells, renderGrid } from './timetable.ts';
+import {
+  Assignment,
+  addAssignment,
+  updateAssignment,
+  deleteAssignment,
+  toggleAssignment,
+  sortAssignmentsByDeadline,
+  formatDeadlineDisplay,
+} from './assignments.ts';
 import { GameState, CourseSlot } from '../store/types.ts';
 import { QUEST_PACKAGES } from '../data/questPackages.ts';
 import { EXAMS } from '../data/exams/index.ts';
@@ -38,6 +47,7 @@ function createMockState(partial: Partial<GameState> = {}): GameState {
     examHistory: [],
     personalExams: [],
     timetable: [],
+    assignments: [],
     lastLocationId: 'dorm',
     cart: [],
     appliedCoupon: null,
@@ -744,6 +754,145 @@ test('sortQuestsByCompletionStatus sorts incomplete quests to top and completed 
   // Next is locked
   assert.equal(sorted[2].status, 'locked');
   assert.equal(sorted[2].id, '5');
+});
+
+test('Assignments: sorting by deadline ascending (earliest to latest)', () => {
+  const list: Assignment[] = [
+    {
+      id: 'a3',
+      title: 'Đồ án cuối kỳ',
+      subject: 'Nhập Môn AI',
+      deadline: '2026-11-20T23:59',
+      description: 'Mô tả',
+      completed: false,
+      createdAt: '2026-10-01T00:00:00Z',
+    },
+    {
+      id: 'a1',
+      title: 'Báo cáo Lab 1',
+      subject: 'Cấu Trúc Dữ Liệu',
+      deadline: '2026-10-30T17:00',
+      description: 'Mô tả',
+      completed: false,
+      createdAt: '2026-10-01T00:00:00Z',
+    },
+    {
+      id: 'a2',
+      title: 'Bài tập tuần 4',
+      subject: 'Giải Tích',
+      deadline: '2026-11-05T12:00',
+      description: 'Mô tả',
+      completed: false,
+      createdAt: '2026-10-01T00:00:00Z',
+    },
+  ];
+
+  const sorted = sortAssignmentsByDeadline(list);
+  assert.equal(sorted[0].id, 'a1', 'Earliest deadline (Oct 30) should be first');
+  assert.equal(sorted[1].id, 'a2', 'Middle deadline (Nov 05) should be second');
+  assert.equal(sorted[2].id, 'a3', 'Latest deadline (Nov 20) should be third');
+});
+
+test('Assignments: CRUD functions (add, update, delete, toggle) work accurately', () => {
+  let list: Assignment[] = [];
+
+  // Add first assignment
+  list = addAssignment(list, {
+    title: 'Bài tập Giải tích',
+    subject: 'Giải Tích 1',
+    deadline: '2026-11-10T23:59',
+    description: 'Chương 2 bài 1 đến 5',
+    completed: false,
+  });
+  assert.equal(list.length, 1);
+  assert.equal(list[0].title, 'Bài tập Giải tích');
+  assert.ok(list[0].id);
+
+  // Add second assignment with earlier deadline
+  list = addAssignment(list, {
+    id: 'asg-early',
+    title: 'Quiz Python',
+    subject: 'Lập trình Python',
+    deadline: '2026-11-02T10:00',
+    description: 'Trắc nghiệm online',
+    completed: false,
+  });
+  assert.equal(list.length, 2);
+  assert.equal(list[0].id, 'asg-early', 'Earlier deadline should automatically sort to the top');
+
+  // Toggle completed
+  list = toggleAssignment(list, 'asg-early');
+  assert.equal(list[0].completed, true);
+  list = toggleAssignment(list, 'asg-early');
+  assert.equal(list[0].completed, false);
+
+  // Update assignment
+  list = updateAssignment(list, {
+    ...list[0],
+    title: 'Quiz Python Chuyên Sâu',
+    deadline: '2026-11-15T10:00', // Pushed later than Nov 10
+  });
+  assert.equal(list.length, 2);
+  assert.equal(list[1].title, 'Quiz Python Chuyên Sâu', 'Updated assignment should re-sort to position 2 due to later deadline');
+
+  // Delete assignment
+  list = deleteAssignment(list, 'asg-early');
+  assert.equal(list.length, 1);
+  assert.equal(list[0].subject, 'Giải Tích 1');
+});
+
+test('Assignments: Reducer actions and RESET_DATA preservation', () => {
+  const state = createMockState();
+  const now = new Date(2026, 9, 20);
+
+  // 1. ADD_ASSIGNMENT
+  const { state: state1 } = gameReducer(
+    state,
+    {
+      type: 'ADD_ASSIGNMENT',
+      payload: {
+        assignment: {
+          id: 'asg-state-1',
+          title: 'Thuyết trình nhóm',
+          subject: 'Kỹ Năng Giao Tiếp',
+          deadline: '2026-11-01T08:00',
+          description: 'Slide 10 trang',
+          completed: false,
+        },
+      },
+    },
+    now
+  );
+  assert.equal(state1.assignments?.length, 1);
+  assert.equal(state1.assignments?.[0].title, 'Thuyết trình nhóm');
+
+  // 2. TOGGLE_ASSIGNMENT
+  const { state: state2 } = gameReducer(
+    state1,
+    {
+      type: 'TOGGLE_ASSIGNMENT',
+      payload: { id: 'asg-state-1' },
+    },
+    now
+  );
+  assert.equal(state2.assignments?.[0].completed, true);
+
+  // 3. RESET_DATA preserves assignments
+  const { state: resetState } = gameReducer(state2, { type: 'RESET_DATA' }, now);
+  assert.equal(resetState.assignments?.length, 1);
+  assert.equal(resetState.assignments?.[0].id, 'asg-state-1');
+  assert.equal(resetState.assignments?.[0].completed, true);
+
+  // 4. DELETE_ASSIGNMENT
+  const { state: deletedState } = gameReducer(
+    resetState,
+    {
+      type: 'DELETE_ASSIGNMENT',
+      payload: { id: 'asg-state-1' },
+    },
+    now
+  );
+  assert.equal(deletedState.assignments?.length, 0);
 });
 
 

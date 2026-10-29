@@ -130,6 +130,19 @@
   animation: sparkleSpin 3s linear infinite;
 }
 
+@keyframes gentleBob {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3.5px);
+  }
+}
+
+.animate-gentle-bob {
+  animation: gentleBob 1.6s ease-in-out infinite;
+}
+
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {

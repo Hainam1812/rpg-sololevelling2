@@ -1,4 +1,7 @@
 import { DifficultyLevel } from '../config/progression.js';
+import type { Assignment } from '../domain/assignments.js';
+
+export type { Assignment };
 
 export type CompletionKind =
   | 'daily'
@@ -177,6 +180,7 @@ export interface GameState {
   examHistory: ExamHistoryEntry[];
   personalExams: PersonalExamGoal[];
   timetable: CourseSlot[];
+  assignments?: Assignment[];
   lastLocationId: string;
   cart: string[]; // package IDs (or 'combo_full_party')
   appliedCoupon: string | null;

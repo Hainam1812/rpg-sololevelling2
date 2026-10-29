@@ -1,4 +1,10 @@
 import { GameState } from './types.js';
+import {
+  loadAssignmentsFromStorage,
+  saveAssignmentsToStorage,
+  ASSIGNMENTS_STORAGE_KEY,
+  sortAssignmentsByDeadline,
+} from '../domain/assignments.js';
 
 export const STORAGE_KEY = 'solo_levelling_app_state_v1';
 export const CURRENT_SCHEMA_VERSION = 1;
@@ -35,6 +41,7 @@ export function getDefaultState(): GameState {
     examHistory: [],
     personalExams: [],
     timetable: [],
+    assignments: loadAssignmentsFromStorage(),
     lastLocationId: 'classroom',
     cart: [],
     appliedCoupon: null,
@@ -93,6 +100,16 @@ export function loadStateFromStorage(): GameState {
               return [];
             }
           })(),
+      assignments: Array.isArray(parsed.assignments)
+        ? sortAssignmentsByDeadline(parsed.assignments)
+        : (() => {
+            try {
+              const asgRaw = localStorage.getItem(ASSIGNMENTS_STORAGE_KEY);
+              return asgRaw ? sortAssignmentsByDeadline(JSON.parse(asgRaw)) : defaultState.assignments || [];
+            } catch {
+              return defaultState.assignments || [];
+            }
+          })(),
       customGearMeta: Array.isArray(parsed.customGearMeta) ? parsed.customGearMeta : [],
       equippedCustomGearIds: Array.isArray(parsed.equippedCustomGearIds) ? parsed.equippedCustomGearIds : [],
       customCharacters: Array.isArray(parsed.customCharacters) ? parsed.customCharacters : [],
@@ -122,6 +139,9 @@ export function saveStateToStorage(state: GameState): void {
       if (Array.isArray(state.timetable)) {
         localStorage.setItem('solo_levelling_timetable_v1', JSON.stringify(state.timetable));
       }
+      if (Array.isArray(state.assignments)) {
+        saveAssignmentsToStorage(state.assignments);
+      }
     } catch (err) {
       console.warn('Could not write state to localStorage (quota or privacy setting):', err);
     }
@@ -140,6 +160,9 @@ export function saveStateToStorageImmediate(state: GameState): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     if (Array.isArray(state.timetable)) {
       localStorage.setItem('solo_levelling_timetable_v1', JSON.stringify(state.timetable));
+    }
+    if (Array.isArray(state.assignments)) {
+      saveAssignmentsToStorage(state.assignments);
     }
   } catch (err) {
     console.warn('Could not write state to localStorage immediately:', err);

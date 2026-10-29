@@ -1,4 +1,4 @@
-import { GameState, NotificationItem, CosmeticSlot, GearSlot, CustomGearItem, CustomCharacterDef, ExamHistoryEntry, Order, CourseSlot } from './types.js';
+import { GameState, NotificationItem, CosmeticSlot, GearSlot, CustomGearItem, CustomCharacterDef, ExamHistoryEntry, Order, CourseSlot, Assignment } from './types.js';
 import { completeDailyQuest } from '../domain/quests.js';
 import { completePackageTask } from '../domain/packages.js';
 import { completeEventTask } from '../domain/events.js';
@@ -7,6 +7,14 @@ import { evaluateNewCosmetics, getUnlockedCosmetics } from '../domain/cosmetics.
 import { calculateLevelFromXp } from '../domain/progression.js';
 import { deleteExamSchedule } from '../domain/exams.js';
 import { addCourse, removeCourse, saveToStorage } from '../domain/timetable.js';
+import {
+  addAssignment,
+  updateAssignment,
+  deleteAssignment,
+  toggleAssignment,
+  saveAssignmentsToStorage,
+  sortAssignmentsByDeadline,
+} from '../domain/assignments.js';
 import { getDateKey } from '../domain/dates.js';
 import { getDefaultState } from './persistence.js';
 
@@ -32,6 +40,11 @@ export type Action =
   | { type: 'ADD_COURSE'; payload: { course: Omit<CourseSlot, 'id'> | CourseSlot } }
   | { type: 'REMOVE_COURSE'; payload: { id: string } }
   | { type: 'SET_TIMETABLE'; payload: { courses: CourseSlot[] } }
+  | { type: 'ADD_ASSIGNMENT'; payload: { assignment: Omit<Assignment, 'id' | 'createdAt'> & { id?: string; createdAt?: string } } }
+  | { type: 'UPDATE_ASSIGNMENT'; payload: { assignment: Assignment } }
+  | { type: 'DELETE_ASSIGNMENT'; payload: { id: string } }
+  | { type: 'TOGGLE_ASSIGNMENT'; payload: { id: string } }
+  | { type: 'SET_ASSIGNMENTS'; payload: { assignments: Assignment[] } }
 
   | { type: 'SET_LAST_LOCATION'; payload: { locationId: string } }
   | { type: 'EQUIP_COSMETIC'; payload: { slot: CosmeticSlot; cosmeticId: string } }
@@ -408,6 +421,56 @@ export function gameReducer(
       break;
     }
 
+    case 'ADD_ASSIGNMENT': {
+      const updated = addAssignment(state.assignments || [], action.payload.assignment);
+      saveAssignmentsToStorage(updated);
+      nextState = {
+        ...state,
+        assignments: updated,
+      };
+      break;
+    }
+
+    case 'UPDATE_ASSIGNMENT': {
+      const updated = updateAssignment(state.assignments || [], action.payload.assignment);
+      saveAssignmentsToStorage(updated);
+      nextState = {
+        ...state,
+        assignments: updated,
+      };
+      break;
+    }
+
+    case 'DELETE_ASSIGNMENT': {
+      const updated = deleteAssignment(state.assignments || [], action.payload.id);
+      saveAssignmentsToStorage(updated);
+      nextState = {
+        ...state,
+        assignments: updated,
+      };
+      break;
+    }
+
+    case 'TOGGLE_ASSIGNMENT': {
+      const updated = toggleAssignment(state.assignments || [], action.payload.id);
+      saveAssignmentsToStorage(updated);
+      nextState = {
+        ...state,
+        assignments: updated,
+      };
+      break;
+    }
+
+    case 'SET_ASSIGNMENTS': {
+      const updated = sortAssignmentsByDeadline(action.payload.assignments || []);
+      saveAssignmentsToStorage(updated);
+      nextState = {
+        ...state,
+        assignments: updated,
+      };
+      break;
+    }
+
 
     case 'SET_LAST_LOCATION': {
       nextState = {
@@ -719,6 +782,7 @@ export function gameReducer(
         equippedCustomGearIds: state.equippedCustomGearIds,
         customCharacters: state.customCharacters,
         timetable: state.timetable,
+        assignments: state.assignments,
         contactMessages: state.contactMessages,
       };
       break;
