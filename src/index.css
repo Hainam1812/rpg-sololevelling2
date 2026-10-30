@@ -130,17 +130,89 @@
   animation: sparkleSpin 3s linear infinite;
 }
 
-@keyframes gentleBob {
-  0%, 100% {
-    transform: translateY(0);
+/* Physics-based jump with reduced speed, gravity, hang time, falling acceleration, and landing impact */
+@keyframes characterPhysicsJump {
+  0% {
+    transform: translateY(0) scale(1, 1);
   }
-  50% {
-    transform: translateY(-7px);
+  7% {
+    /* Compression before takeoff */
+    transform: translateY(2px) scale(1.06, 0.94);
+  }
+  16% {
+    /* Explosive upward launch */
+    transform: translateY(-14px) scale(0.96, 1.05);
+  }
+  32% {
+    /* Decelerating against gravity */
+    transform: translateY(-26px) scale(0.98, 1.02);
+  }
+  44% {
+    /* Peak apex / hang time */
+    transform: translateY(-30px) scale(1, 1);
+  }
+  54% {
+    /* Peak apex float tipping point */
+    transform: translateY(-29px) scale(1, 1);
+  }
+  68% {
+    /* Gravitational acceleration: beginning to fall */
+    transform: translateY(-20px) scale(0.97, 1.03);
+  }
+  80% {
+    /* Fast downward plunge under gravity */
+    transform: translateY(-6px) scale(0.95, 1.05);
+  }
+  85% {
+    /* Ground impact: squash compression */
+    transform: translateY(0) scale(1.08, 0.92);
+  }
+  92% {
+    /* Elastic rebound */
+    transform: translateY(-2px) scale(0.99, 1.01);
+  }
+  100% {
+    /* Rest at ground */
+    transform: translateY(0) scale(1, 1);
+  }
+}
+
+@keyframes physicsShadow {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  7% {
+    transform: scale(1.06);
+    opacity: 0.65;
+  }
+  44%, 54% {
+    /* High above ground: shadow is smaller and lighter */
+    transform: scale(0.65);
+    opacity: 0.3;
+  }
+  80% {
+    transform: scale(0.95);
+    opacity: 0.55;
+  }
+  85% {
+    /* Ground impact: shadow expands momentarily */
+    transform: scale(1.1);
+    opacity: 0.7;
+  }
+  92%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
   }
 }
 
 .animate-gentle-bob {
-  animation: gentleBob 1.0s ease-in-out infinite;
+  animation: characterPhysicsJump 1.15s ease-in-out infinite;
+}
+
+.animate-physics-shadow {
+  transform-origin: 0px 16px;
+  animation: physicsShadow 1.15s ease-in-out infinite;
 }
 
 /* Respect reduced motion */

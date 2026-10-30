@@ -304,12 +304,13 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
     CAMPUS_LOCATIONS.find(l => l.id === selectedLocId) || CAMPUS_LOCATIONS[0];
   const selectedMastery = locationsMastery.find(m => m.location.id === selectedLocId);
 
-  // Smooth jump & landing position tracking directly in SVG coordinate space
-  // Fast jump with high arc amplitude
-  const [charPos, setCharPos] = useState<{ x: number; y: number; jumpY: number }>({
+  // Smooth horizontal glide position tracking directly in SVG coordinate space
+  // Halved speed (duration: 420ms) with horizontal glide transition
+  const [charPos, setCharPos] = useState<{ x: number; y: number; jumpY: number; isMoving: boolean }>({
     x: selectedLocation.x,
     y: selectedLocation.y,
     jumpY: 0,
+    isMoving: false,
   });
   const prevLocRef = useRef<{ x: number; y: number }>({
     x: selectedLocation.x,
@@ -324,7 +325,7 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
     const startY = prevLocRef.current.y;
 
     if (startX === targetX && startY === targetY) {
-      setCharPos({ x: targetX, y: targetY, jumpY: 0 });
+      setCharPos({ x: targetX, y: targetY, jumpY: 0, isMoving: false });
       return;
     }
 
@@ -332,27 +333,25 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
       cancelAnimationFrame(animFrameRef.current);
     }
 
-    // Faster leap (210ms) and high amplitude jump arc (-45px)
-    const duration = 210;
+    // Halved speed: duration doubled from 210ms to 420ms for smooth horizontal glide
+    const duration = 420;
     const startTime = performance.now();
 
     const animate = (nowTime: number) => {
       const elapsed = nowTime - startTime;
       const progress = Math.min(1, elapsed / duration);
-      // Snappy cubic ease out
+      // Smooth cubic ease out for horizontal gliding motion
       const ease = 1 - Math.pow(1 - progress, 3);
-      // High jump arc mid-flight
-      const jumpArc = Math.sin(progress * Math.PI) * -45;
 
       const curX = Math.round((startX + (targetX - startX) * ease) * 10) / 10;
       const curY = Math.round((startY + (targetY - startY) * ease) * 10) / 10;
 
-      setCharPos({ x: curX, y: curY, jumpY: Math.round(jumpArc * 10) / 10 });
+      setCharPos({ x: curX, y: curY, jumpY: 0, isMoving: true });
 
       if (progress < 1) {
         animFrameRef.current = requestAnimationFrame(animate);
       } else {
-        setCharPos({ x: targetX, y: targetY, jumpY: 0 });
+        setCharPos({ x: targetX, y: targetY, jumpY: 0, isMoving: false });
         prevLocRef.current = { x: targetX, y: targetY };
       }
     };
@@ -764,26 +763,31 @@ export const CampusMapPage: React.FC<CampusMapPageProps> = ({ defaultView }) => 
                 className="pointer-events-none"
                 transform={`translate(${charPos.x}, ${charPos.y})`}
               >
-                {/* Ground shadow beneath character - scales realistically when airborne */}
+                {/* Ground shadow beneath character with physics-based scaling */}
                 <ellipse
                   cx="0"
                   cy="16"
-                  rx={Math.max(8, 16 + charPos.jumpY * 0.12)}
-                  ry={Math.max(2.5, 5 + charPos.jumpY * 0.04)}
+                  rx="32"
+                  ry="9"
                   fill="#000000"
-                  opacity={charPos.jumpY < -10 ? 0.35 : 0.6}
+                  className={charPos.isMoving ? '' : 'animate-physics-shadow'}
+                  opacity={0.6}
                 />
 
-                {/* Embedded HTML character sprite with high amplitude jump arc */}
+                {/* Embedded HTML character sprite with doubled size and physics jump */}
                 <foreignObject
-                  x="-32"
-                  y={-38 + charPos.jumpY}
-                  width="64"
-                  height="64"
+                  x="-64"
+                  y="-74"
+                  width="128"
+                  height="128"
                   className="overflow-visible pointer-events-none"
                 >
-                  <div className="w-full h-full flex items-center justify-center filter drop-shadow-[0_6px_10px_rgba(0,0,0,0.8)] animate-gentle-bob">
-                    <CharacterSprite characterId={state.profile.characterId} scale={0.7} />
+                  <div
+                    className={`w-full h-full flex items-center justify-center filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.8)] ${
+                      charPos.isMoving ? '' : 'animate-gentle-bob'
+                    }`}
+                  >
+                    <CharacterSprite characterId={state.profile.characterId} scale={1.4} />
                   </div>
                 </foreignObject>
               </g>
